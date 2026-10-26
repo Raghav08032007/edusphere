@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import {
   UserProfile,
   UserRole,
+  AuthProvider,
   AcademicClass,
   ClassNote,
   AttendanceRecord,
@@ -21,6 +22,7 @@ import {
 } from '../lib/supabaseClient';
 import { INITIAL_COURSES } from '../data/coursesData';
 import { YellowWhiteNavbar } from './layout/YellowWhiteNavbar';
+import { AuthModal } from './auth/AuthModal';
 import { StaffNotesManager } from './staff/StaffNotesManager';
 import { StaffAttendanceView } from './staff/StaffAttendanceView';
 import { StaffDoubtsQueue } from './staff/StaffDoubtsQueue';
@@ -40,6 +42,9 @@ import { QuizAssessmentView } from './learning/QuizAssessmentView';
 export const StudyPilotApp: React.FC = () => {
   // Current logged in profile: starts as Student (Param Sahar), switchable to Staff (Dr. K. Rajan)
   const [currentUser, setCurrentUser] = useState<UserProfile>(DEMO_STUDENT_USERS[0]);
+
+  // Auth Modal state
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Active navigation tab: starts on 'dashboard' for comprehensive Coursera/Vedantu experience
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -127,6 +132,25 @@ export const StudyPilotApp: React.FC = () => {
       setActiveTab('dashboard');
       showToast('🎓 Switched to Student Scholar Portal: Param Sahar');
     }
+  };
+
+  // OAuth Login Success Handler (Google, GitHub, Apple iOS)
+  const handleLoginSuccess = (user: UserProfile, provider: AuthProvider) => {
+    setCurrentUser(user);
+    if (user.role === 'staff') {
+      setActiveTab('staff-notes');
+    } else {
+      setActiveTab('dashboard');
+    }
+
+    const providerNames: Record<AuthProvider, string> = {
+      google: 'Google Account',
+      github: 'GitHub SSO',
+      apple: 'Apple ID (iOS)',
+      email: 'Institutional Email',
+    };
+
+    showToast(`✓ Welcome, ${user.fullName}! Signed in via ${providerNames[provider]}.`);
   };
 
   // Staff: Add Note
@@ -337,6 +361,7 @@ export const StudyPilotApp: React.FC = () => {
           setCooperPrompt(undefined);
           setIsCooperModalOpen(true);
         }}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
         unresolvedDoubtsCount={unresolvedDoubtsCount}
       />
 
@@ -712,6 +737,14 @@ export const StudyPilotApp: React.FC = () => {
           onPostDoubt={handlePostDoubt}
         />
       )}
+
+      {/* Social OAuth & Academic Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={currentUser}
+        onLoginSuccess={handleLoginSuccess}
+      />
 
       {/* Footer */}
       <footer className="border-t border-yellow-200 bg-white py-8 text-center text-xs text-slate-500 space-y-2">

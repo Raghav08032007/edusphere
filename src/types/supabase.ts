@@ -6,12 +6,14 @@ export type UserRole = 'staff' | 'student';
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 export type DoubtStatus = 'unresolved' | 'answered' | 'resolved';
 export type DoubtPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type AuthProvider = 'google' | 'github' | 'apple' | 'email';
 
 export interface UserProfile {
   id: string;
   email: string;
   fullName: string;
   role: UserRole;
+  authProvider?: AuthProvider;
   regNumber?: string;
   department?: string;
   avatarUrl?: string;

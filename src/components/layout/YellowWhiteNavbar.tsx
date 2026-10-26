@@ -9,6 +9,7 @@ interface YellowWhiteNavbarProps {
   setActiveTab: (tab: string) => void;
   onSwitchRole: (role: UserRole) => void;
   onOpenCooper: () => void;
+  onOpenAuth: () => void;
   unresolvedDoubtsCount: number;
 }
 
@@ -18,6 +19,7 @@ export const YellowWhiteNavbar: React.FC<YellowWhiteNavbarProps> = ({
   setActiveTab,
   onSwitchRole,
   onOpenCooper,
+  onOpenAuth,
   unresolvedDoubtsCount,
 }) => {
   const isStaff = currentUser.role === 'staff';
@@ -41,6 +43,40 @@ export const YellowWhiteNavbar: React.FC<YellowWhiteNavbarProps> = ({
   ];
 
   const navItems = isStaff ? staffNavItems : studentNavItems;
+
+  const getProviderIcon = (provider?: string) => {
+    switch (provider) {
+      case 'google':
+        return (
+          <span
+            className="w-3.5 h-3.5 rounded-full bg-white flex items-center justify-center font-bold text-[9px] text-[#4285F4] border border-slate-200 shadow-2xs"
+            title="Authenticated via Google OAuth"
+          >
+            G
+          </span>
+        );
+      case 'github':
+        return (
+          <span
+            className="w-3.5 h-3.5 rounded-full bg-black flex items-center justify-center font-bold text-[8px] text-white shadow-2xs"
+            title="Authenticated via GitHub OAuth"
+          >
+            🐙
+          </span>
+        );
+      case 'apple':
+        return (
+          <span
+            className="w-3.5 h-3.5 rounded-full bg-black flex items-center justify-center font-bold text-[8px] text-white shadow-2xs"
+            title="Authenticated via Apple ID / iOS"
+          >
+            
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-yellow-200/90 shadow-2xs">
@@ -106,16 +142,54 @@ export const YellowWhiteNavbar: React.FC<YellowWhiteNavbarProps> = ({
             })}
           </nav>
 
-          {/* Right Action Cluster: Role Switcher & Cooper Trigger */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Right Action Cluster: Auth Login, Role Switcher & Cooper Trigger */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Account & OAuth Login Trigger */}
+            <button
+              onClick={onOpenAuth}
+              className="px-2.5 py-1.5 rounded-2xl bg-white border border-yellow-300 hover:border-yellow-500 shadow-2xs hover:shadow-xs transition-all flex items-center gap-2 cursor-pointer text-left"
+              title="Account & Login (Google, GitHub, Apple iOS)"
+            >
+              <div className="relative">
+                {currentUser.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.fullName}
+                    className="w-7 h-7 rounded-xl object-cover border border-yellow-200"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-xl bg-yellow-200 text-slate-800 flex items-center justify-center text-xs font-bold font-mono-code">
+                    {currentUser.fullName.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                {currentUser.authProvider && (
+                  <div className="absolute -bottom-1 -right-1">
+                    {getProviderIcon(currentUser.authProvider)}
+                  </div>
+                )}
+              </div>
+
+              <div className="hidden xl:block">
+                <span className="block text-xs font-extrabold text-slate-900 truncate max-w-[95px] leading-tight">
+                  {currentUser.fullName.split(' ')[0]}
+                </span>
+                <span className="text-[9px] text-amber-800 font-mono-code font-bold block leading-tight">
+                  {currentUser.authProvider
+                    ? currentUser.authProvider.toUpperCase()
+                    : 'Sign In'}
+                </span>
+              </div>
+            </button>
+
             {/* Quick Cooper Launcher Button */}
             <button
               onClick={onOpenCooper}
-              className="yellow-gradient-btn px-3.5 py-2 rounded-2xl text-xs font-bold flex items-center gap-2 border border-yellow-400 cursor-pointer shadow-2xs"
+              className="yellow-gradient-btn px-3 py-2 rounded-2xl text-xs font-bold flex items-center gap-1.5 border border-yellow-400 cursor-pointer shadow-2xs"
               title="Launch Cooper AI Assistant"
             >
               <span className="w-2 h-2 rounded-full bg-amber-950/70 animate-pulse" />
-              <span className="font-extrabold">Ask Cooper</span>
+              <span className="font-extrabold">Cooper</span>
               <span className="hidden sm:inline px-1.5 py-0.5 rounded-md bg-white/40 text-[9px] font-mono-code">
                 MCP
               </span>
