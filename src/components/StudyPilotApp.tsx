@@ -13,6 +13,7 @@ import {
 } from '../types/supabase';
 import { Course, CourseTopic, CourseQuiz, QuizAttemptResult } from '../types/curriculum';
 import {
+  supabase,
   DEMO_STAFF_USERS,
   DEMO_STUDENT_USERS,
   INITIAL_CLASSES,
@@ -75,10 +76,23 @@ export const StudyPilotApp: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Safe client-side hydration synchronization with localStorage
+  // Safe client-side hydration synchronization with localStorage & Supabase Auth
   useEffect(() => {
+    // Hydrate local cached academic data & check auth params
     const timer = setTimeout(() => {
       try {
+        // Check for OAuth callback error in URL parameters
+        if (typeof window !== 'undefined') {
+          const searchParams = new URLSearchParams(window.location.search);
+          const authError = searchParams.get('authError');
+          if (authError) {
+            showToast(`⚠️ Authentication Error: ${decodeURIComponent(authError)}`);
+            // Remove error query param cleanly from URL
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        }
+
         const cachedUser = localStorage.getItem('studypilot_active_user');
         if (cachedUser) setCurrentUser(JSON.parse(cachedUser));
 
@@ -106,7 +120,87 @@ export const StudyPilotApp: React.FC = () => {
       } catch {}
     }, 0);
 
-    return () => clearTimeout(timer);
+    // 3. Supabase Auth Session Synchronization
+    if (supabase) {
+      // Check current session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          const meta = session.user.user_metadata || {};
+          const profile: UserProfile = {
+            id: session.user.id,
+            email: session.user.email || '',
+            fullName:
+              meta.full_name ||
+              meta.name ||
+              session.user.email?.split('@')[0] ||
+              'Scholar',
+            role: (meta.role as UserRole) || 'student',
+            authProvider:
+              (session.user.app_metadata?.provider as AuthProvider) || 'google',
+            avatarUrl: meta.avatar_url || meta.picture || undefined,
+          };
+          setCurrentUser(profile);
+        }
+      });
+
+      // Listen for OAuth redirects & real-time auth changes
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event, session) => {
+        if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+          const meta = session.user.user_metadata || {};
+          const profile: UserProfile = {
+            id: session.user.id,
+            email: session.user.email || '',
+            fullName:
+              meta.full_name ||
+              meta.name ||
+              session.user.email?.split('@')[0] ||
+              'Scholar',
+            role: (meta.role as UserRole) || 'student',
+            authProvider:
+              (session.user.app_metadata?.provider as AuthProvider) || 'google',
+            avatarUrl: meta.avatar_url || meta.picture || undefined,
+          };
+          setCurrentUser(profile);
+          showToast(`✓ Welcome, ${profile.fullName}! Signed in via Google.`);
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUser(DEMO_STUDENT_USERS[0]);
+        }
+      });
+
+      return () => {
+        clearTimeout(timer);
+        subscription.unsubscribe();
+      };
+    } else {
+      // Check HTTP-only session cookies via backend endpoint
+      fetch('/api/auth/session')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.user) {
+            const u = data.user;
+            const meta = u.user_metadata || {};
+            const profile: UserProfile = {
+              id: u.id,
+              email: u.email || '',
+              fullName:
+                meta.full_name ||
+                meta.name ||
+                u.email?.split('@')[0] ||
+                'Scholar',
+              role: (meta.role as UserRole) || 'student',
+              authProvider:
+                (u.app_metadata?.provider as AuthProvider) || 'google',
+              avatarUrl: meta.avatar_url || meta.picture || undefined,
+            };
+            setCurrentUser(profile);
+          }
+        })
+        .catch(() => {});
+
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   // Sync state to localStorage on mutation
@@ -132,6 +226,24 @@ export const StudyPilotApp: React.FC = () => {
       setActiveTab('dashboard');
       showToast('🎓 Switched to Student Scholar Portal: Param Sahar');
     }
+  };
+
+  // Logout Handler (Clears client session, Supabase auth, and HTTP-only session cookies)
+  const handleLogout = async () => {
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch {}
+    }
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    try {
+      localStorage.removeItem('studypilot_active_user');
+    } catch {}
+    setCurrentUser(DEMO_STUDENT_USERS[0]);
+    setActiveTab('dashboard');
+    showToast('✓ Successfully signed out of account.');
   };
 
   // OAuth Login Success Handler (Google, GitHub, Apple iOS)
@@ -744,6 +856,7 @@ export const StudyPilotApp: React.FC = () => {
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={currentUser}
         onLoginSuccess={handleLoginSuccess}
+        onLogout={handleLogout}
       />
 
       {/* Footer */}
