@@ -13,6 +13,7 @@ import {
 } from '../types/supabase';
 import {
   Course,
+  CourseModule,
   CourseTopic,
   CourseQuiz,
   QuizAttemptResult,
@@ -63,7 +64,7 @@ export const StudyPilotApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // Core Data Collections (initialized identically on server & client to avoid hydration mismatch)
-  const [classes] = useState<AcademicClass[]>(INITIAL_CLASSES);
+  const [classes, setClasses] = useState<AcademicClass[]>(INITIAL_CLASSES);
   const [notes, setNotes] = useState<ClassNote[]>(INITIAL_NOTES);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(INITIAL_ATTENDANCE);
   const [doubts, setDoubts] = useState<StudentDoubt[]>(INITIAL_DOUBTS);
@@ -311,6 +312,72 @@ export const StudyPilotApp: React.FC = () => {
   // Track last published topic by mentor
   const [lastPublishedTopic, setLastPublishedTopic] = useState<{ courseId: string; topicId: string } | null>(null);
 
+  // Mentor: Create a New Course
+  const handleCreateCourse = (newCourse: Course) => {
+    setCourses((prev) => {
+      const updated = [newCourse, ...prev];
+      try {
+        localStorage.setItem('edusphere_courses', JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed saving courses to localStorage:', err);
+      }
+      return updated;
+    });
+
+    // Also register in classes so notes filter reflects this course
+    const newClass: AcademicClass = {
+      id: newCourse.id,
+      code: newCourse.code,
+      name: newCourse.title,
+      subject: newCourse.subject || 'Engineering',
+      staffId: currentUser.id,
+      staffName: currentUser.fullName,
+      studentCount: 1,
+      academicYear: 'Fall 2026',
+    };
+    setClasses((prev) => {
+      const updated = [...prev, newClass];
+      try {
+        localStorage.setItem('studypilot_classes', JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed saving classes to localStorage:', err);
+      }
+      return updated;
+    });
+
+    showToast(`🎓 New course "${newCourse.code}: ${newCourse.title}" successfully created!`);
+  };
+
+  // Mentor: Add a New Module to an existing course
+  const handleCreateModule = (courseId: string, moduleTitle: string) => {
+    setCourses((prev) => {
+      const updated = prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const newModNumber = c.modules.length + 1;
+        const newMod: CourseModule = {
+          id: `mod-${Date.now()}`,
+          courseId: c.id,
+          moduleNumber: newModNumber,
+          title: moduleTitle,
+          description: `Module ${newModNumber} for ${c.title}`,
+          estimatedMinutes: 60,
+          topics: [],
+        };
+        return {
+          ...c,
+          modules: [...c.modules, newMod],
+        };
+      });
+      try {
+        localStorage.setItem('edusphere_courses', JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed saving courses to localStorage:', err);
+      }
+      return updated;
+    });
+    showToast(`📁 Module "${moduleTitle}" added to course!`);
+  };
+
   // Staff / Mentor: Publish Interactive Video with Checkpoints & Reference Notes
   const handlePublishMentorVideo = (videoData: {
     title: string;
@@ -320,6 +387,9 @@ export const StudyPilotApp: React.FC = () => {
     videoDurationMinutes: number;
     referenceNotes?: string;
     checkpoints: VideoCheckpoint[];
+    difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
+    summary?: string;
+    thumbnailUrl?: string;
     notesAttachment?: {
       title: string;
       content: string;
@@ -333,7 +403,7 @@ export const StudyPilotApp: React.FC = () => {
 
     // 1. Update courses state with new topic in target module
     setCourses((prevCourses) => {
-      return prevCourses.map((c) => {
+      const updated = prevCourses.map((c) => {
         if (c.id !== videoData.courseId) return c;
         return {
           ...c,
@@ -391,34 +461,51 @@ export const StudyPilotApp: React.FC = () => {
           }),
         };
       });
+
+      // Persist courses immediately so student login displays them
+      try {
+        localStorage.setItem('edusphere_courses', JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed saving courses to localStorage:', err);
+      }
+      return updated;
     });
 
-    // 2. If mentor also specified notes attachment, publish to class notes
-    if (videoData.notesAttachment) {
-      const newClassNote: ClassNote = {
-        id: `note-class-${Date.now()}`,
-        classId: 'class-1',
-        className: videoData.notesAttachment.className || 'CS-101 / Quantum-101',
-        staffId: currentUser.id,
-        staffName: currentUser.fullName,
-        title: videoData.notesAttachment.title,
-        subject: 'Curriculum & Video Reference',
-        content: videoData.notesAttachment.content,
-        attachmentName: videoData.notesAttachment.attachmentName,
-        attachmentUrl: videoData.notesAttachment.attachmentUrl,
-        tags: [
-          'Lecture Video',
-          'Checkpoints',
-          'Formulas',
-          videoData.notesAttachment.attachmentName ? 'Handout' : 'Notes',
-        ],
-        isPublished: true,
-        createdAt: new Date().toISOString(),
-      };
-      setNotes((prev) => [newClassNote, ...prev]);
-    }
+    // 2. ALWAYS publish to Notes library so it's guaranteed present in Notes tab
+    const targetCourse = courses.find((c) => c.id === videoData.courseId);
+    const newClassNote: ClassNote = {
+      id: `note-class-${Date.now()}`,
+      classId: videoData.courseId,
+      className: targetCourse ? `${targetCourse.code} - ${targetCourse.title}` : 'Curriculum Course',
+      staffId: currentUser.id,
+      staffName: currentUser.fullName,
+      title: videoData.notesAttachment?.title || `${videoData.title} - Lecture Notes & Handout`,
+      subject: targetCourse?.subject || 'Curriculum & Video Reference',
+      content: videoData.referenceNotes || `# ${videoData.title}\n\nLecture notes, derivations, and formulas.`,
+      attachmentName: videoData.notesAttachment?.attachmentName,
+      attachmentUrl: videoData.notesAttachment?.attachmentUrl,
+      tags: [
+        'Lecture Video',
+        'Checkpoints',
+        targetCourse?.code || 'Course',
+        videoData.notesAttachment?.attachmentName ? 'Handout' : 'Notes',
+      ],
+      isPublished: true,
+      createdAt: new Date().toISOString(),
+    };
 
-    showToast(`🎬 Video lecture & reference notes "${videoData.title}" published for students!`);
+    setNotes((prev) => {
+      const updated = [newClassNote, ...prev];
+      // Persist notes immediately so student login displays them
+      try {
+        localStorage.setItem('studypilot_notes', JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed saving notes to localStorage:', err);
+      }
+      return updated;
+    });
+
+    showToast(`🎬 "${videoData.title}" submitted & live in Course and Notes!`);
   };
 
   // Staff: Save Attendance
@@ -626,6 +713,8 @@ export const StudyPilotApp: React.FC = () => {
                 currentUser={currentUser}
                 courses={courses}
                 onPublishVideo={handlePublishMentorVideo}
+                onCreateCourse={handleCreateCourse}
+                onCreateModule={handleCreateModule}
                 onPreviewAsStudent={(targetCourseId, targetTopicId) => {
                   handleSwitchRole('student');
                   const cid = targetCourseId || lastPublishedTopic?.courseId || courses[0]?.id;
@@ -636,6 +725,10 @@ export const StudyPilotApp: React.FC = () => {
                     setTopicViewMode('note');
                   }
                   setActiveTab('courses');
+                }}
+                onViewNotesAsStudent={() => {
+                  handleSwitchRole('student');
+                  setActiveTab('notes');
                 }}
               />
             )}

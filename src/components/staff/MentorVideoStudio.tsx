@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Course, VideoCheckpoint } from '../../types/curriculum';
+import { Course, CourseModule, DifficultyLevel, VideoCheckpoint } from '../../types/curriculum';
 import { UserProfile } from '../../types/supabase';
-import { parseTimestampToSeconds } from '../learning/CourseVideoLecturesView';
+import { parseTimestampToSeconds } from '../learning/TopicNoteReader';
 
 interface MentorVideoStudioProps {
   currentUser: UserProfile;
@@ -27,24 +27,44 @@ interface MentorVideoStudioProps {
       attachmentUrl?: string;
     };
   }) => void;
+  onCreateCourse?: (newCourse: Course) => void;
+  onCreateModule?: (courseId: string, moduleTitle: string) => void;
   onPreviewAsStudent?: (targetCourseId?: string, targetTopicId?: string) => void;
+  onViewNotesAsStudent?: () => void;
 }
 
 export const MentorVideoStudio: React.FC<MentorVideoStudioProps> = ({
   currentUser,
   courses,
   onPublishVideo,
+  onCreateCourse,
+  onCreateModule,
   onPreviewAsStudent,
+  onViewNotesAsStudent,
 }) => {
-  // Form State
-  const [title, setTitle] = useState('Attention in Transformers: Step-by-Step Mechanisms');
-  const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || 'course-dl-ai');
+  // Course & Module Destination State
+  const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?.id || 'course-dist-sys');
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) || courses[0];
   const [selectedModuleId, setSelectedModuleId] = useState(
     selectedCourse?.modules[0]?.id || ''
   );
 
-  // Video Input Mode: 'upload' vs 'url'
+  // Modal: Create New Course
+  const [isCreateCourseModalOpen, setIsCreateCourseModalOpen] = useState(false);
+  const [newCourseCode, setNewCourseCode] = useState('');
+  const [newCourseTitle, setNewCourseTitle] = useState('');
+  const [newCourseSubject, setNewCourseSubject] = useState('Computer Science');
+  const [newCourseCategory, setNewCourseCategory] = useState('Systems & Infrastructure');
+  const [newCourseDescription, setNewCourseDescription] = useState('');
+  const [newCourseModuleTitle, setNewCourseModuleTitle] = useState('Module 1: Foundations & Architecture');
+  const [newCourseDifficulty, setNewCourseDifficulty] = useState<DifficultyLevel>('Intermediate');
+
+  // Modal: Add New Module
+  const [isAddModuleModalOpen, setIsAddModuleModalOpen] = useState(false);
+  const [newModuleTitleInput, setNewModuleTitleInput] = useState('');
+
+  // Video Lecture Form State
+  const [title, setTitle] = useState('Attention in Transformers: Step-by-Step Mechanisms');
   const [videoInputMode, setVideoInputMode] = useState<'upload' | 'url'>('upload');
   const [videoUrl, setVideoUrl] = useState('https://www.youtube.com/watch?v=eMlx5fFNoYc');
   const [videoDuration, setVideoDuration] = useState(26);
@@ -102,7 +122,7 @@ export const MentorVideoStudio: React.FC<MentorVideoStudioProps> = ({
     },
   ]);
 
-  // Reference Notes State
+  // Reference Notes & Handouts State
   const [referenceNotes, setReferenceNotes] = useState(
     `# Mathematical Reference & Derivations: Scaled Dot-Product Attention
 
@@ -124,14 +144,23 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
   );
 
   const [publishAlsoAsNote, setPublishAlsoAsNote] = useState(true);
-  const [targetClass, setTargetClass] = useState('CS-101 / AI-Core');
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentName, setAttachmentName] = useState<string>('');
   const [attachmentUrl, setAttachmentUrl] = useState<string | undefined>(undefined);
   const [isGeneratingCheckpoints, setIsGeneratingCheckpoints] = useState(false);
   const [generationFeedback, setGenerationFeedback] = useState<string | null>(null);
   const [activeNotesTab, setActiveNotesTab] = useState<'edit' | 'preview'>('edit');
+
+  // Submission Feedback & Overlay State
   const [isPublishedSuccess, setIsPublishedSuccess] = useState(false);
+  const [publishedDetails, setPublishedDetails] = useState<{
+    courseCode: string;
+    courseTitle: string;
+    moduleTitle: string;
+    lectureTitle: string;
+    checkpointsCount: number;
+    handoutName?: string;
+  } | null>(null);
 
   // Handle Video File Upload from Device (.mp4, .webm, .mov, etc.)
   const handleVideoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -252,10 +281,88 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
     );
   };
 
-  // Publish to curriculum
+  // Submit Course Creation
+  const handleCreateCourseSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCourseTitle.trim()) {
+      alert('Please enter a course title.');
+      return;
+    }
+
+    const code = newCourseCode.trim() || `CRS-${Math.floor(100 + Math.random() * 900)}`;
+    const courseId = `course-${Date.now()}`;
+    const moduleId = `mod-${Date.now()}-1`;
+
+    const newCourseObj: Course = {
+      id: courseId,
+      code,
+      title: newCourseTitle.trim(),
+      subtitle: newCourseDescription.trim().slice(0, 80) || 'Comprehensive Academic Curriculum',
+      subject: newCourseSubject,
+      category: newCourseCategory,
+      instructorName: currentUser.fullName,
+      instructorTitle: 'Course Mentor & Faculty Instructor',
+      instructorAvatar: currentUser.avatarUrl || '👨‍🏫',
+      rating: 5.0,
+      enrolledCount: 1,
+      estimatedHours: 24,
+      difficulty: newCourseDifficulty,
+      description: newCourseDescription.trim() || `Academic course covering ${newCourseTitle}.`,
+      learningObjectives: [
+        `Master foundational and advanced concepts of ${newCourseTitle}.`,
+        'Engage with mandatory checkpoint assessments and video proofs.',
+        'Study comprehensive reference notes, derivations, and handouts.',
+      ],
+      modules: [
+        {
+          id: moduleId,
+          courseId,
+          moduleNumber: 1,
+          title: newCourseModuleTitle.trim() || 'Module 1: Foundations & Architecture',
+          description: `Foundations of ${newCourseTitle}.`,
+          estimatedMinutes: 60,
+          topics: [],
+        },
+      ],
+      isEnrolled: true,
+      progressPercentage: 0,
+    };
+
+    onCreateCourse?.(newCourseObj);
+    setSelectedCourseId(courseId);
+    setSelectedModuleId(moduleId);
+    setIsCreateCourseModalOpen(false);
+
+    // Reset create fields
+    setNewCourseTitle('');
+    setNewCourseCode('');
+    setNewCourseDescription('');
+  };
+
+  // Submit Add Module
+  const handleAddModuleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newModuleTitleInput.trim()) {
+      alert('Please enter a module title.');
+      return;
+    }
+    onCreateModule?.(selectedCourseId, newModuleTitleInput.trim());
+    setIsAddModuleModalOpen(false);
+    setNewModuleTitleInput('');
+  };
+
+  // Submit and Publish Lecture & Notes
   const handlePublish = () => {
+    if (!selectedCourse) {
+      alert('Please select or create a target course first.');
+      return;
+    }
     if (!title.trim()) {
       alert('Please provide a title for the video lecture.');
+      return;
+    }
+    if (!videoUrl) {
+      alert('Please provide a video source (upload video file or paste video URL).');
       return;
     }
     if (checkpoints.length === 0) {
@@ -263,7 +370,8 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
       return;
     }
 
-    const moduleId = selectedModuleId || selectedCourse?.modules[0]?.id || 'module-1';
+    const moduleId = selectedModuleId || selectedCourse.modules[0]?.id || 'mod-1';
+    const targetMod = selectedCourse.modules.find((m) => m.id === moduleId) || selectedCourse.modules[0];
 
     onPublishVideo({
       title,
@@ -276,23 +384,318 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
       difficulty,
       summary: lectureSummary,
       thumbnailUrl: customThumbnailUrl || undefined,
-      notesAttachment: publishAlsoAsNote
-        ? {
-            title: `${title} - Faculty Reference Notes`,
-            content: referenceNotes,
-            className: targetClass,
-            attachmentName: attachmentName || undefined,
-            attachmentUrl: attachmentUrl || undefined,
-          }
-        : undefined,
+      notesAttachment: {
+        title: `${title} - Lecture Reference Notes`,
+        content: referenceNotes,
+        className: `${selectedCourse.code} - ${selectedCourse.title}`,
+        attachmentName: attachmentName || undefined,
+        attachmentUrl: attachmentUrl || undefined,
+      },
+    });
+
+    setPublishedDetails({
+      courseCode: selectedCourse.code,
+      courseTitle: selectedCourse.title,
+      moduleTitle: targetMod?.title || 'Selected Module',
+      lectureTitle: title,
+      checkpointsCount: checkpoints.length,
+      handoutName: attachmentName || undefined,
     });
 
     setIsPublishedSuccess(true);
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Header Banner */}
+    <div className="space-y-8 animate-fadeIn pb-16">
+      {/* ========================================================================= */}
+      {/* MODAL 1: CREATE COURSE FIRST */}
+      {/* ========================================================================= */}
+      {isCreateCourseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white w-full max-w-xl rounded-3xl p-6 sm:p-8 border-2 border-yellow-400 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setIsCreateCourseModalOpen(false)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-yellow-100 hover:bg-yellow-200 text-slate-800 font-bold flex items-center justify-center cursor-pointer transition-colors"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-yellow-400 text-slate-950 font-mono-code">
+                Step 1: Course Architecture
+              </span>
+              <h2 className="font-adorn text-2xl font-black text-slate-950">
+                Create a New Course First
+              </h2>
+              <p className="text-xs text-slate-600">
+                Define your course curriculum first. Once created, you will immediately upload your lecture videos and reference notes into it.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateCourseSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-1">
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
+                    Course Code *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newCourseCode}
+                    onChange={(e) => setNewCourseCode(e.target.value)}
+                    placeholder="e.g. CS-AI-502"
+                    className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-yellow-50/20 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
+                    Course Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newCourseTitle}
+                    onChange={(e) => setNewCourseTitle(e.target.value)}
+                    placeholder="e.g. Deep Reinforcement Learning & Autonomy"
+                    className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-yellow-50/20 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
+                    Subject / Domain
+                  </label>
+                  <select
+                    value={newCourseSubject}
+                    onChange={(e) => setNewCourseSubject(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer"
+                  >
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="Artificial Intelligence">Artificial Intelligence</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Mathematics">Mathematics</option>
+                    <option value="Electrical Engineering">Electrical Engineering</option>
+                    <option value="Biology">Biology</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
+                    Difficulty Level
+                  </label>
+                  <select
+                    value={newCourseDifficulty}
+                    onChange={(e) => setNewCourseDifficulty(e.target.value as DifficultyLevel)}
+                    className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer"
+                  >
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
+                  Initial Module 1 Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newCourseModuleTitle}
+                  onChange={(e) => setNewCourseModuleTitle(e.target.value)}
+                  placeholder="e.g. Module 1: Foundations & Markov Processes"
+                  className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-yellow-50/20 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
+                  Course Overview &amp; Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={newCourseDescription}
+                  onChange={(e) => setNewCourseDescription(e.target.value)}
+                  placeholder="Brief summary of syllabus topics, mathematical derivations, and core principles covered..."
+                  className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-yellow-50/20 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-yellow-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateCourseModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="yellow-gradient-btn px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-md hover:scale-105 transition-all"
+                >
+                  ✓ Create Course &amp; Start Uploading
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: ADD MODULE TO COURSE */}
+      {/* ========================================================================= */}
+      {isAddModuleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 sm:p-8 border-2 border-yellow-400 shadow-2xl space-y-5 relative">
+            <button
+              onClick={() => setIsAddModuleModalOpen(false)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-yellow-100 hover:bg-yellow-200 text-slate-800 font-bold flex items-center justify-center cursor-pointer transition-colors"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-yellow-400 text-slate-950 font-mono-code">
+                {selectedCourse?.code || 'Course'}
+              </span>
+              <h3 className="font-adorn text-xl font-black text-slate-950">
+                Add New Module
+              </h3>
+              <p className="text-xs text-slate-600">
+                Add an additional syllabus module to &quot;{selectedCourse?.title}&quot;.
+              </p>
+            </div>
+
+            <form onSubmit={handleAddModuleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
+                  Module Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newModuleTitleInput}
+                  onChange={(e) => setNewModuleTitleInput(e.target.value)}
+                  placeholder={`Module ${(selectedCourse?.modules.length || 0) + 1}: e.g. Attention & Graph Networks`}
+                  className="w-full px-3 py-2.5 rounded-xl border border-yellow-300 bg-yellow-50/20 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModuleModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="yellow-gradient-btn px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-sm"
+                >
+                  + Add Module
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: SUBMISSION SUCCESS & DIRECT VERIFICATION MODAL */}
+      {/* ========================================================================= */}
+      {isPublishedSuccess && publishedDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white w-full max-w-2xl rounded-3xl p-6 sm:p-9 border-4 border-yellow-400 shadow-2xl space-y-6 relative animate-scaleUp">
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-800 border-2 border-emerald-400 mx-auto flex items-center justify-center text-3xl shadow-sm">
+                ✓
+              </div>
+              <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-yellow-400 text-slate-950 font-mono-code">
+                Successfully Submitted to Curriculum &amp; Notes
+              </span>
+              <h2 className="font-adorn text-2xl sm:text-3xl font-black text-slate-950">
+                Lecture Video &amp; Notes Are Now Live!
+              </h2>
+              <p className="text-xs text-slate-600 max-w-lg mx-auto leading-relaxed">
+                Your content has been submitted and linked to both the <strong>Courses</strong> curriculum syllabus and the <strong>Notes</strong> library for student access.
+              </p>
+            </div>
+
+            {/* Published Summary Card */}
+            <div className="bg-yellow-50/70 rounded-2xl p-4 sm:p-5 border-2 border-yellow-200 space-y-2.5 text-xs text-slate-800 font-mono-code">
+              <div className="flex items-center justify-between border-b border-yellow-200/80 pb-2">
+                <span className="text-slate-500 uppercase font-bold">Target Course:</span>
+                <span className="font-bold text-amber-900">
+                  {publishedDetails.courseCode} — {publishedDetails.courseTitle}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-b border-yellow-200/80 pb-2">
+                <span className="text-slate-500 uppercase font-bold">Module:</span>
+                <span className="font-bold text-slate-900">{publishedDetails.moduleTitle}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-yellow-200/80 pb-2">
+                <span className="text-slate-500 uppercase font-bold">Lecture Topic:</span>
+                <span className="font-bold text-slate-950">{publishedDetails.lectureTitle}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-yellow-200/80 pb-2">
+                <span className="text-slate-500 uppercase font-bold">In-Video Checkpoints:</span>
+                <span className="font-bold text-emerald-700">
+                  ⚡ {publishedDetails.checkpointsCount} Mandatory Pause Questions
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 uppercase font-bold">Reference Notes &amp; Handouts:</span>
+                <span className="font-bold text-amber-700">
+                  📄 {publishedDetails.handoutName || 'Structured Formula Notes Included'}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Action Navigation Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setIsPublishedSuccess(false);
+                  onPreviewAsStudent?.(selectedCourseId);
+                }}
+                className="py-3 px-4 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer hover:scale-105"
+              >
+                <span>🎓</span>
+                <span>View in Courses (Student Login)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsPublishedSuccess(false);
+                  onViewNotesAsStudent?.();
+                }}
+                className="py-3 px-4 rounded-2xl bg-slate-950 hover:bg-slate-800 text-yellow-300 font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer hover:scale-105"
+              >
+                <span>📚</span>
+                <span>View in Notes (Student Login)</span>
+              </button>
+            </div>
+
+            <div className="text-center pt-1">
+              <button
+                onClick={() => setIsPublishedSuccess(false)}
+                className="text-xs font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
+              >
+                + Upload Another Lecture or Course
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TOP HEADER BANNER */}
+      {/* ========================================================================= */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-yellow-300 shadow-md relative overflow-hidden bg-gradient-to-r from-yellow-50/80 via-amber-50/40 to-white">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -305,89 +708,83 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
               </span>
             </div>
             <h1 className="font-adorn text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              Interactive Video &amp; Notes Authoring Studio
+              Course Video &amp; Notes Publishing Studio
             </h1>
             <p className="text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">
-              Upload video lectures directly or paste video links. Configure <strong>mandatory in-video checkpoints</strong> with adaptive rewinds, and attach notes in <strong>any format</strong> (PDF, Word, PowerPoint, Markdown).
+              First <strong>create your course</strong> or pick an existing course. Then upload your lecture video with <strong>mandatory in-video checkpoints</strong> and attach notes in <strong>any format</strong> (PDF, Word, PowerPoint, Markdown).
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => onPreviewAsStudent?.(selectedCourseId)}
-              className="px-4 py-2.5 rounded-2xl bg-white border-2 border-yellow-400 hover:bg-yellow-100 text-slate-950 font-bold text-xs transition-all shadow-2xs flex items-center gap-2 cursor-pointer"
+              onClick={() => setIsCreateCourseModalOpen(true)}
+              className="px-4 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-slate-950 font-black text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
-              <span>👁️</span>
-              <span>Preview in Courses &amp; Notes</span>
+              <span>✨</span>
+              <span>+ Create Course First</span>
             </button>
+
             <button
               onClick={handlePublish}
-              className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-300 hover:to-amber-300 text-slate-950 font-black text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer hover:scale-105"
             >
               <span>🚀</span>
-              <span>Publish Lecture &amp; Notes</span>
+              <span>Submit &amp; Publish</span>
             </button>
           </div>
         </div>
-
-        {isPublishedSuccess && (
-          <div className="mt-4 p-4 rounded-2xl bg-emerald-100 border-2 border-emerald-400 text-emerald-950 font-bold text-xs flex items-center justify-between animate-fadeIn">
-            <div className="flex items-center gap-2">
-              <span className="text-base">✓</span>
-              <span>
-                <strong>Lecture Published!</strong> &quot;{title}&quot; is now live in the student curriculum as an interactive topic with {checkpoints.length} mandatory checkpoints and attached reference notes!
-              </span>
-            </div>
-            <button
-              onClick={() => onPreviewAsStudent?.(selectedCourseId)}
-              className="px-3 py-1 rounded-xl bg-slate-950 text-yellow-300 font-black text-[11px] shadow-sm cursor-pointer hover:bg-slate-800 transition-all"
-            >
-              View in Course Syllabus →
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Main 2-Column Authoring Layout */}
+      {/* ========================================================================= */}
+      {/* MAIN 2-COLUMN AUTHORING LAYOUT */}
+      {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Video Upload, Metadata & Notes (5 cols) */}
+        {/* Left Column: Course Selector, Video Upload, Notes (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-white rounded-3xl p-6 border-2 border-yellow-300 shadow-sm space-y-5">
             <h3 className="font-adorn text-xl font-black text-slate-900 flex items-center gap-2">
               <span>📹</span>
-              <span>Video Lecture Metadata</span>
+              <span>1. Course, Video &amp; Notes Setup</span>
             </h3>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Lecture Title
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Scaled Dot-Product Attention Proofs"
-                  className="w-full px-4 py-2.5 rounded-xl border border-yellow-300 bg-yellow-50/30 text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                />
+            {/* STEP 1: COURSE & MODULE SELECTION OR CREATION */}
+            <div className="bg-gradient-to-r from-yellow-50 via-amber-50/40 to-yellow-50 p-4 sm:p-5 rounded-2xl border-2 border-yellow-300 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-800 font-mono-code flex items-center gap-1.5">
+                  <span>🎓</span>
+                  <span>Target Course &amp; Module</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateCourseModalOpen(true)}
+                  className="px-2.5 py-1 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-slate-950 font-black text-[11px] transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                >
+                  <span>✨</span>
+                  <span>+ Create New Course</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Target Course
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Select Target Course
                   </label>
                   <select
                     value={selectedCourseId}
                     onChange={(e) => {
+                      if (e.target.value === '__CREATE_NEW__') {
+                        setIsCreateCourseModalOpen(true);
+                        return;
+                      }
                       setSelectedCourseId(e.target.value);
                       const crs = courses.find((c) => c.id === e.target.value);
                       if (crs && crs.modules.length > 0) {
                         setSelectedModuleId(crs.modules[0].id);
                       }
                     }}
-                    className="w-full px-3 py-2.5 rounded-xl border border-yellow-300 bg-white text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer"
+                    className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-white text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer"
                   >
+                    <option value="__CREATE_NEW__">✨ + Create a New Course...</option>
                     {courses.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.code} - {c.title}
@@ -397,28 +794,67 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Target Module
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      Select Target Module
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddModuleModalOpen(true)}
+                      className="text-[10px] font-bold text-amber-800 hover:underline cursor-pointer"
+                    >
+                      + Add Module
+                    </button>
+                  </div>
                   <select
                     value={selectedModuleId}
-                    onChange={(e) => setSelectedModuleId(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-yellow-300 bg-white text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer"
+                    onChange={(e) => {
+                      if (e.target.value === '__ADD_MODULE__') {
+                        setIsAddModuleModalOpen(true);
+                        return;
+                      }
+                      setSelectedModuleId(e.target.value);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-white text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer"
                   >
                     {selectedCourse?.modules.map((m) => (
                       <option key={m.id} value={m.id}>
                         Mod {m.moduleNumber}: {m.title}
                       </option>
                     ))}
+                    <option value="__ADD_MODULE__">➕ + Add New Module...</option>
                   </select>
                 </div>
               </div>
 
-              {/* VIDEO SOURCE SELECTION: UPLOAD FILE VS PASTE URL */}
+              {selectedCourse && (
+                <div className="text-[11px] text-slate-700 font-mono-code bg-white/90 p-2.5 rounded-xl border border-yellow-200 flex flex-wrap items-center justify-between gap-2">
+                  <span>Selected Course: <strong>{selectedCourse.code}</strong> • {selectedCourse.title}</span>
+                  <span className="text-amber-800 font-bold">{selectedCourse.modules.length} Modules</span>
+                </div>
+              )}
+            </div>
+
+            {/* STEP 2: LECTURE TITLE */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Lecture Topic Title *
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Attention in Transformers: Step-by-Step Mechanisms"
+                  className="w-full px-4 py-2.5 rounded-xl border border-yellow-300 bg-yellow-50/30 text-slate-900 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+              </div>
+
+              {/* STEP 3: VIDEO SOURCE SELECTION: UPLOAD FILE VS PASTE URL */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Video Source
+                    Video Source *
                   </label>
                   <div className="flex items-center gap-1 bg-yellow-100 p-0.5 rounded-xl text-[11px] font-bold">
                     <button
@@ -430,7 +866,7 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                           : 'text-slate-600 hover:text-slate-950'
                       }`}
                     >
-                      📤 Upload Video
+                      📤 Upload Video File
                     </button>
                     <button
                       type="button"
@@ -441,12 +877,12 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                           : 'text-slate-600 hover:text-slate-950'
                       }`}
                     >
-                      🔗 Paste Link
+                      🔗 Paste Video Link
                     </button>
                   </div>
                 </div>
 
-                {/* Option 1: File Upload */}
+                {/* Option A: Device File Upload (.mp4, .webm, .mov, .mkv) */}
                 {videoInputMode === 'upload' ? (
                   <div className="space-y-3">
                     <div className="border-2 border-dashed border-yellow-300 rounded-2xl p-4 bg-yellow-50/40 hover:bg-yellow-50 transition-all text-center">
@@ -478,33 +914,30 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                                 setUploadedVideoFile(null);
                                 setUploadedVideoName('');
                                 setUploadedVideoSize('');
-                                setVideoUrl('https://www.youtube.com/watch?v=eMlx5fFNoYc');
+                                setVideoUrl('');
                               }}
-                              className="text-xs text-rose-500 hover:text-rose-700 font-bold px-2 py-1 cursor-pointer"
+                              className="text-xs font-bold text-red-600 hover:text-red-800 p-1 cursor-pointer"
                             >
-                              ✕ Remove
+                              Remove
                             </button>
                           </div>
 
-                          {/* Video Preview Player */}
-                          <div className="aspect-video w-full rounded-xl overflow-hidden bg-black border border-slate-800">
-                            <video
-                              src={videoUrl}
-                              controls
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
+                          <video
+                            src={videoUrl}
+                            controls
+                            className="w-full aspect-video rounded-xl bg-black shadow-inner border border-yellow-300"
+                          />
                         </div>
                       ) : (
                         <label
                           htmlFor="mentor-video-file-upload"
-                          className="cursor-pointer flex flex-col items-center justify-center gap-1.5 py-3"
+                          className="cursor-pointer block py-5 space-y-2 select-none"
                         >
-                          <span className="text-3xl">🎥</span>
-                          <span className="text-xs font-bold text-slate-900">
+                          <span className="text-3xl block">📹</span>
+                          <span className="text-xs font-bold text-slate-900 block">
                             Click to upload video file (.mp4, .webm, .mov)
                           </span>
-                          <span className="text-[10px] text-slate-500 font-mono-code">
+                          <span className="text-[10px] text-slate-500 block font-mono-code">
                             Supports any resolution up to 4K • Auto-reads lecture duration
                           </span>
                         </label>
@@ -512,40 +945,32 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                     </div>
                   </div>
                 ) : (
-                  /* Option 2: URL Input */
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={videoUrl}
-                        onChange={(e) => setVideoUrl(e.target.value)}
-                        placeholder="https://www.youtube.com/watch?v=..."
-                        className="flex-1 px-4 py-2.5 rounded-xl border border-yellow-300 bg-yellow-50/30 text-slate-900 text-xs font-mono-code focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                      />
-                      <input
-                        type="number"
-                        value={videoDuration}
-                        onChange={(e) => setVideoDuration(Number(e.target.value))}
-                        title="Duration in minutes"
-                        className="w-20 px-3 py-2.5 rounded-xl border border-yellow-300 bg-yellow-50/30 text-slate-900 text-xs font-mono-code text-center font-bold"
-                      />
-                    </div>
+                  /* Option B: YouTube / Video URL */
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="w-full px-4 py-2.5 rounded-xl border border-yellow-300 bg-yellow-50/30 text-slate-900 text-xs font-mono-code focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
 
                     <button
                       type="button"
-                      onClick={handleAutoGenerateCheckpoints}
                       disabled={isGeneratingCheckpoints}
-                      className="w-full py-2.5 rounded-2xl bg-slate-950 hover:bg-slate-800 text-yellow-300 font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                      onClick={handleAutoGenerateCheckpoints}
+                      className="w-full py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-yellow-300 text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
-                      <span>{isGeneratingCheckpoints ? '⏳' : '✨'}</span>
+                      <span>✨</span>
                       <span>
                         {isGeneratingCheckpoints
-                          ? 'Analyzing Video Subtitles...'
+                          ? 'Synthesizing Checkpoints from Video...'
                           : 'Auto-Generate Questions from Video URL'}
                       </span>
                     </button>
+
                     {generationFeedback && (
-                      <p className="text-[11px] font-mono-code font-bold text-amber-900 bg-yellow-100 p-2 rounded-xl">
+                      <p className="text-[11px] font-mono-code text-amber-800 font-bold bg-yellow-50 p-2 rounded-lg border border-yellow-200">
                         {generationFeedback}
                       </p>
                     )}
@@ -553,61 +978,76 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                 )}
               </div>
 
-              {/* CARD DETAILS: DIFFICULTY & SUMMARY */}
-              <div className="space-y-3 pt-2 border-t border-yellow-200">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Difficulty Level
+              {/* DURATION & DIFFICULTY */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Duration (Mins)
                   </label>
-                  <div className="flex gap-1.5">
-                    {(['Beginner', 'Intermediate', 'Advanced'] as const).map((lvl) => (
-                      <button
-                        key={lvl}
-                        type="button"
-                        onClick={() => setDifficulty(lvl)}
-                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          difficulty === lvl
-                            ? 'bg-yellow-400 text-slate-950 font-black shadow-2xs border border-yellow-500'
-                            : 'bg-yellow-50 text-slate-600 hover:bg-yellow-100'
-                        }`}
-                      >
-                        {lvl}
-                      </button>
-                    ))}
-                  </div>
+                  <input
+                    type="number"
+                    min={1}
+                    max={360}
+                    value={videoDuration}
+                    onChange={(e) => setVideoDuration(Number(e.target.value) || 15)}
+                    className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-white text-xs font-bold text-slate-900"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Lecture Takeaway / Card Summary
+                    Difficulty Level
                   </label>
-                  <textarea
-                    rows={2}
-                    value={lectureSummary}
-                    onChange={(e) => setLectureSummary(e.target.value)}
-                    placeholder="Short summary displayed on the student card..."
-                    className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-yellow-50/20 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                  />
+                  <div className="flex gap-1">
+                    {(['Beginner', 'Intermediate', 'Advanced'] as const).map((lvl) => (
+                      <button
+                        type="button"
+                        key={lvl}
+                        onClick={() => setDifficulty(lvl)}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          difficulty === lvl
+                            ? 'bg-yellow-400 text-slate-950 font-black shadow-2xs'
+                            : 'bg-yellow-50 text-slate-600 hover:bg-yellow-100'
+                        }`}
+                      >
+                        {lvl.slice(0, 3)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              </div>
+
+              {/* CARD SUMMARY */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Lecture Takeaway / Card Summary
+                </label>
+                <textarea
+                  rows={2}
+                  value={lectureSummary}
+                  onChange={(e) => setLectureSummary(e.target.value)}
+                  placeholder="Key takeaway to display on the student course topic card..."
+                  className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-yellow-50/20 text-xs font-medium text-slate-900"
+                />
               </div>
             </div>
           </div>
 
-          {/* Reference Notes & Class Handouts Section (Any Format) */}
+          {/* REFERENCE NOTES & UNIVERSAL HANDOUT FILE UPLOAD */}
           <div className="bg-white rounded-3xl p-6 border-2 border-yellow-300 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-adorn text-xl font-black text-slate-900 flex items-center gap-2">
                 <span>📚</span>
-                <span>Reference Notes &amp; Formulas</span>
+                <span>Reference Notes &amp; Handouts</span>
               </h3>
-              <div className="flex items-center gap-1 bg-yellow-100 p-1 rounded-xl">
+              <div className="flex items-center gap-1 bg-yellow-100 p-0.5 rounded-xl text-[11px] font-bold">
                 <button
                   type="button"
                   onClick={() => setActiveNotesTab('edit')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-2.5 py-1 rounded-lg cursor-pointer transition-all ${
                     activeNotesTab === 'edit'
-                      ? 'bg-yellow-400 text-slate-950 shadow-2xs'
-                      : 'text-slate-700 hover:text-slate-950'
+                      ? 'bg-yellow-400 text-slate-950 font-black'
+                      : 'text-slate-600'
                   }`}
                 >
                   Markdown
@@ -615,10 +1055,10 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                 <button
                   type="button"
                   onClick={() => setActiveNotesTab('preview')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-2.5 py-1 rounded-lg cursor-pointer transition-all ${
                     activeNotesTab === 'preview'
-                      ? 'bg-yellow-400 text-slate-950 shadow-2xs'
-                      : 'text-slate-700 hover:text-slate-950'
+                      ? 'bg-yellow-400 text-slate-950 font-black'
+                      : 'text-slate-600'
                   }`}
                 >
                   KaTeX Preview
@@ -627,64 +1067,48 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
             </div>
 
             <p className="text-xs text-slate-600">
-              Add formulas (<code>$$ formula $$</code>), derivations, and takeaways for students to study alongside this video.
+              Add formulas ($$ formula $$), derivations, and takeaways for students to study alongside this video. These notes appear in both <strong>Courses</strong> and <strong>Notes</strong>!
             </p>
 
             {activeNotesTab === 'edit' ? (
               <textarea
-                rows={8}
+                rows={9}
                 value={referenceNotes}
                 onChange={(e) => setReferenceNotes(e.target.value)}
-                className="w-full p-4 rounded-2xl border border-yellow-300 bg-yellow-50/20 text-slate-900 font-mono-code text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                placeholder="# Mathematical Derivations & References..."
+                className="w-full px-4 py-3 rounded-2xl border border-yellow-300 bg-yellow-50/20 font-mono-code text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-yellow-400 leading-relaxed"
               />
             ) : (
-              <div className="p-4 rounded-2xl border border-yellow-300 bg-white max-h-60 overflow-y-auto prose prose-sm text-slate-800">
-                <pre className="whitespace-pre-wrap font-sans text-xs leading-relaxed">
-                  {referenceNotes}
-                </pre>
+              <div className="p-4 rounded-2xl bg-yellow-50/40 border border-yellow-200 text-xs text-slate-800 font-mono-code whitespace-pre-wrap max-h-56 overflow-y-auto">
+                {referenceNotes}
               </div>
             )}
 
-            {/* Universal File Attachment: PDF, Word (.docx), PPT, Markdown, etc. */}
+            {/* UNIVERSAL HANDOUT FILE ATTACHMENT */}
             <div className="pt-2 border-t border-yellow-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 font-mono-code">
-                  📎 Attach Notes Handout (PDF, Word, PPT, MD, TXT)
-                </label>
-                <span className="text-[10px] text-slate-500 font-bold">Any Format Accepted</span>
-              </div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                📎 Attach Handout / Slides (PDF, Word, PPT, Markdown)
+              </label>
 
-              <div className="border-2 border-dashed border-yellow-300 rounded-2xl p-3 bg-yellow-50/40 hover:bg-yellow-50 transition-colors">
+              <div className="flex items-center gap-2">
                 <input
                   type="file"
-                  id="mentor-notes-file-upload"
+                  id="mentor-handout-upload"
                   className="hidden"
+                  accept=".pdf,.docx,.doc,.pptx,.ppt,.txt,.md"
                   onChange={handleFileChange}
-                  accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.rtf,.odt,.csv"
                 />
+                <label
+                  htmlFor="mentor-handout-upload"
+                  className="px-4 py-2 rounded-xl bg-white border border-yellow-300 hover:bg-yellow-50 text-slate-900 text-xs font-bold cursor-pointer shadow-2xs flex items-center gap-1.5"
+                >
+                  <span>📁 Choose File</span>
+                  <span className="text-slate-400 text-[10px]">(.pdf, .docx, .ppt)</span>
+                </label>
 
-                {attachmentFile ? (
-                  <div className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-yellow-300 shadow-2xs">
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="text-xl">
-                        {attachmentName.endsWith('.pdf')
-                          ? '📕'
-                          : attachmentName.endsWith('.doc') || attachmentName.endsWith('.docx')
-                          ? '📘'
-                          : attachmentName.endsWith('.ppt') || attachmentName.endsWith('.pptx')
-                          ? '📙'
-                          : '📄'}
-                      </span>
-                      <div className="truncate text-left">
-                        <span className="text-xs font-bold text-slate-900 block truncate">
-                          {attachmentName}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-mono-code">
-                          {(attachmentFile.size / (1024 * 1024)).toFixed(2)} MB • {attachmentName.split('.').pop()?.toUpperCase()} Ready
-                        </span>
-                      </div>
-                    </div>
-
+                {attachmentName && (
+                  <div className="flex items-center gap-2 bg-yellow-100/70 px-3 py-1.5 rounded-xl border border-yellow-300 text-xs font-mono-code font-bold text-amber-950 truncate max-w-[200px]">
+                    <span className="truncate">{attachmentName}</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -692,106 +1116,65 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                         setAttachmentName('');
                         setAttachmentUrl(undefined);
                       }}
-                      className="text-xs text-rose-500 hover:text-rose-700 font-bold px-2 py-1 cursor-pointer"
+                      className="text-red-600 hover:text-red-800"
                     >
-                      ✕ Remove
+                      ✕
                     </button>
                   </div>
-                ) : (
-                  <label
-                    htmlFor="mentor-notes-file-upload"
-                    className="cursor-pointer flex flex-col items-center justify-center gap-1 py-2 text-center"
-                  >
-                    <span className="text-2xl">📤</span>
-                    <span className="text-xs font-bold text-slate-900">
-                      Upload PDF, Word (.docx), PowerPoint (.pptx), or Markdown file
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-mono-code">
-                      Accepts: .pdf, .docx, .doc, .pptx, .ppt, .md, .txt
-                    </span>
-                  </label>
                 )}
               </div>
-            </div>
-
-            {/* Also publish to Student Notes option */}
-            <div className="pt-2 border-t border-yellow-200 space-y-2">
-              <label className="flex items-center gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={publishAlsoAsNote}
-                  onChange={(e) => setPublishAlsoAsNote(e.target.checked)}
-                  className="w-4 h-4 accent-amber-500 rounded"
-                />
-                <span className="text-xs font-bold text-slate-800">
-                  Also publish to <strong>Student Notes Library</strong> as class handout
-                </span>
-              </label>
-
-              {publishAlsoAsNote && (
-                <div className="pl-6">
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                    Assign to Cohort / Class Section:
-                  </label>
-                  <input
-                    type="text"
-                    value={targetClass}
-                    onChange={(e) => setTargetClass(e.target.value)}
-                    placeholder="e.g. CS-101 / AI-Core"
-                    className="w-full px-3 py-1.5 rounded-xl border border-yellow-300 text-xs font-bold bg-white"
-                  />
-                </div>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Right Column: In-Video Checkpoints & Live Student Card Preview (7 cols) */}
+        {/* Right Column: Checkpoints & Live Student Preview (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Checkpoint Questions Editor */}
-          <div className="bg-white rounded-3xl p-6 border-2 border-yellow-300 shadow-sm space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* IN-VIDEO MANDATORY CHECKPOINTS */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border-2 border-yellow-400 shadow-md space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-yellow-200 pb-4">
               <div>
-                <h3 className="font-adorn text-xl font-black text-slate-900 flex items-center gap-2">
-                  <span>🛑</span>
-                  <span>In-Video Mandatory Checkpoints ({checkpoints.length})</span>
-                </h3>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  The video pauses at each timestamp. Wrong answers rewind to previous checkpoint!
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+                  <h3 className="font-adorn text-xl font-black text-slate-900">
+                    2. In-Video Mandatory Checkpoints ({checkpoints.length})
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-600 mt-1">
+                  The video pauses at each timestamp. Wrong answers rewind to the previous checkpoint!
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={handleAddCheckpoint}
-                className="px-3.5 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black text-xs transition-all shadow-2xs flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-slate-950 text-xs font-black uppercase font-mono-code shadow-2xs cursor-pointer flex items-center gap-1.5"
               >
-                <span>➕</span>
+                <span>+</span>
                 <span>Add Checkpoint</span>
               </button>
             </div>
 
-            {/* Checkpoints List */}
-            <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+            {/* Checkpoint Cards List */}
+            <div className="space-y-4">
               {checkpoints.map((cp, idx) => (
                 <div
                   key={cp.id}
-                  className="p-5 rounded-2xl border-2 border-yellow-200 bg-yellow-50/20 hover:border-yellow-400 transition-all space-y-4"
+                  className="p-5 rounded-2xl bg-yellow-50/40 border border-yellow-300 space-y-3 relative hover:border-yellow-500 transition-all shadow-2xs"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-slate-950 text-yellow-300 flex items-center justify-center font-mono-code text-xs font-black">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-6 h-6 rounded-full bg-yellow-400 text-slate-950 font-mono-code font-black text-xs flex items-center justify-center">
                         {idx + 1}
                       </span>
-                      <span className="text-xs font-bold text-slate-700">Timestamp:</span>
+                      <label className="text-xs font-bold text-slate-700">Timestamp:</label>
                       <input
                         type="text"
                         value={cp.timestamp}
                         onChange={(e) => handleUpdateCheckpoint(cp.id, { timestamp: e.target.value })}
                         placeholder="0:15"
-                        className="w-20 px-2 py-1 rounded-lg border border-yellow-300 text-xs font-mono-code font-black text-center bg-white"
+                        className="w-20 px-2.5 py-1 rounded-lg border border-yellow-300 bg-white font-mono-code text-xs font-bold text-center"
                       />
-                      <span className="text-[11px] text-slate-500 font-mono-code">
+                      <span className="text-[10px] text-slate-500 font-mono-code">
                         ({cp.seconds}s into lecture)
                       </span>
                     </div>
@@ -799,30 +1182,28 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                     <button
                       type="button"
                       onClick={() => handleRemoveCheckpoint(cp.id)}
-                      className="text-xs text-red-600 hover:text-red-800 font-bold px-2 py-1 rounded-lg hover:bg-red-50 cursor-pointer"
+                      className="text-xs font-bold text-red-600 hover:text-red-800 p-1 cursor-pointer"
                     >
                       ✕ Remove
                     </button>
                   </div>
 
-                  {/* Question Prompt */}
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                       Question Prompt
                     </label>
-                    <input
-                      type="text"
+                    <textarea
+                      rows={2}
                       value={cp.question}
                       onChange={(e) => handleUpdateCheckpoint(cp.id, { question: e.target.value })}
-                      placeholder="e.g. Why do we scale dot products by sqrt(d_k)?"
-                      className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full px-3 py-2 rounded-xl border border-yellow-300 bg-white text-xs font-semibold text-slate-900"
                     />
                   </div>
 
-                  {/* Options */}
+                  {/* Multiple Choice Options */}
                   <div className="space-y-2">
                     <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                      Multiple Choice Options (Select Radio for Correct Answer):
+                      Multiple Choice Options (Select radio for correct answer):
                     </label>
                     {cp.options.map((opt, optIdx) => {
                       const isCorrect = cp.correctIdx === optIdx;
@@ -835,16 +1216,12 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                         >
                           <input
                             type="radio"
-                            name={`correct-radio-${cp.id}`}
+                            name={`correct-${cp.id}`}
                             checked={isCorrect}
                             onChange={() => handleUpdateCheckpoint(cp.id, { correctIdx: optIdx })}
-                            className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                            className="accent-emerald-600 cursor-pointer"
                           />
-                          <span
-                            className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono-code font-black ${
-                              isCorrect ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-800'
-                            }`}
-                          >
+                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-mono-code font-bold flex items-center justify-center shrink-0">
                             {String.fromCharCode(65 + optIdx)}
                           </span>
                           <input
@@ -855,10 +1232,10 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                               newOpts[optIdx] = e.target.value;
                               handleUpdateCheckpoint(cp.id, { options: newOpts });
                             }}
-                            className="flex-1 px-2.5 py-1 rounded-lg border border-transparent hover:border-yellow-300 bg-transparent text-xs font-medium focus:bg-white focus:outline-none"
+                            className="flex-1 bg-transparent text-xs font-medium text-slate-900 focus:outline-none"
                           />
                           {isCorrect && (
-                            <span className="text-[10px] font-bold font-mono-code text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                            <span className="text-[10px] font-black uppercase text-emerald-700 px-2 py-0.5 rounded bg-emerald-100 font-mono-code">
                               Correct ✓
                             </span>
                           )}
@@ -870,23 +1247,24 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
               ))}
             </div>
 
-            {/* Publish Actions */}
-            <div className="pt-4 border-t border-yellow-200 flex items-center justify-between">
-              <span className="text-xs text-slate-500 font-mono-code">
-                {checkpoints.length} Checkpoints Configured
+            {/* Bottom Submit Action Bar */}
+            <div className="pt-4 border-t border-yellow-200 flex flex-wrap items-center justify-between gap-3">
+              <span className="text-xs text-slate-600 font-mono-code">
+                {checkpoints.length} Checkpoints Configured • Target: <strong>{selectedCourse?.code}</strong>
               </span>
+
               <button
                 type="button"
                 onClick={handlePublish}
-                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-300 hover:to-amber-300 text-slate-950 font-black text-xs transition-all shadow-md cursor-pointer flex items-center gap-2"
+                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-xs transition-all shadow-md cursor-pointer flex items-center gap-2 hover:scale-105"
               >
                 <span>🚀</span>
-                <span>Publish to Student Curriculum</span>
+                <span>Submit &amp; Publish to Course &amp; Notes</span>
               </button>
             </div>
           </div>
 
-          {/* LIVE STUDENT CARD PREVIEW (HOW THIS APPEARS TO STUDENTS) */}
+          {/* LIVE STUDENT CARD PREVIEW */}
           <div className="bg-white rounded-3xl p-6 border-2 border-yellow-400 shadow-md space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -894,91 +1272,57 @@ Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields v
                   🎓 Live Preview
                 </span>
                 <span className="text-xs text-slate-700 font-bold">
-                  How this Lecture Card Appears to Students
+                  How this appears to students in Courses &amp; Notes
                 </span>
               </div>
               <span className="text-[11px] font-mono-code text-slate-500">
-                Interactive Student Card
+                Course: {selectedCourse?.code || 'Course'}
               </span>
             </div>
 
-            {/* The Student Card Component Preview */}
             <div className="bg-gradient-to-br from-yellow-50/70 via-white to-amber-50/40 rounded-3xl p-6 border-2 border-yellow-300 shadow-lg space-y-4 hover:border-yellow-500 transition-all">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-yellow-100 pb-3">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded-full bg-yellow-400 text-slate-950 text-[10px] font-mono-code font-black uppercase">
                     {selectedCourse?.code || 'CS-101'}
                   </span>
-                  <span className="text-xs font-bold text-slate-500 truncate">
-                    {selectedCourse?.modules.find((m) => m.id === selectedModuleId)?.title || 'Module 1'}
+                  <span className="text-xs font-bold text-slate-600 font-mono-code">
+                    Mod {selectedCourse?.modules.find(m => m.id === selectedModuleId)?.moduleNumber || 1} • {videoDuration} Mins
                   </span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 text-[10px] font-mono-code font-bold">
-                    {difficulty}
-                  </span>
-                  <span className="text-xs font-mono-code font-bold text-slate-600">
-                    ⏱️ {videoDuration} mins
-                  </span>
-                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold font-mono-code">
+                  ⚡ {checkpoints.length} Checkpoints Active
+                </span>
               </div>
 
-              {/* Title & Summary */}
               <div>
-                <h4 className="font-adorn text-xl font-black text-slate-900 leading-snug">
+                <h4 className="font-adorn text-xl font-bold text-slate-950 leading-tight">
                   {title || 'Lecture Title'}
                 </h4>
-                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                   {lectureSummary}
                 </p>
               </div>
 
-              {/* Checkpoint Badges & Handouts Strip */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-300 text-amber-900 text-[11px] font-mono-code font-black flex items-center gap-1.5">
-                  <span>⚡</span>
-                  <span>{checkpoints.length} In-Video Checkpoints</span>
-                </span>
-
-                {attachmentName ? (
-                  <span className="px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-[11px] font-mono-code font-bold flex items-center gap-1.5">
-                    <span>
-                      {attachmentName.endsWith('.pdf') ? '📕' : attachmentName.endsWith('.doc') || attachmentName.endsWith('.docx') ? '📘' : '📎'}
-                    </span>
-                    <span>{attachmentName}</span>
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-xl bg-yellow-100 text-yellow-950 text-[11px] font-mono-code font-bold flex items-center gap-1">
-                    <span>📝</span>
-                    <span>LaTeX Formulas &amp; Notes</span>
-                  </span>
-                )}
-              </div>
-
-              {/* Card Footer: Instructor & Launch Action */}
-              <div className="pt-3 border-t border-yellow-200/80 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-yellow-400 text-slate-950 font-black text-xs flex items-center justify-center font-mono-code">
-                    {currentUser.fullName.charAt(0)}
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block leading-tight">
-                      {currentUser.fullName}
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-mono-code block">
-                      Instructor
-                    </span>
-                  </div>
+              {attachmentName && (
+                <div className="flex items-center gap-2 text-xs font-mono-code font-bold text-amber-800 bg-yellow-100/60 p-2.5 rounded-xl border border-yellow-300">
+                  <span>📎 Attached Handout:</span>
+                  <span>{attachmentName}</span>
                 </div>
+              )}
+
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-xs font-bold text-slate-600">
+                  👨‍🏫 {currentUser.fullName}
+                </span>
 
                 <button
                   type="button"
-                  onClick={() => onPreviewAsStudent?.(selectedCourseId)}
+                  onClick={handlePublish}
                   className="px-4 py-2 rounded-2xl bg-slate-950 hover:bg-slate-800 text-yellow-300 font-bold text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
-                  <span>▶️</span>
-                  <span>Watch Lecture with Checkpoints</span>
+                  <span>🚀</span>
+                  <span>Submit to Course</span>
                 </button>
               </div>
             </div>
