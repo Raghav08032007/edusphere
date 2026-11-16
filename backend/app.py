@@ -75,7 +75,21 @@ def create_app():
 
     return app
 
+class PrefixMiddleware:
+    """WSGI middleware ensuring /api/py/ and /api/ prefixes route identically on Vercel and local bridges."""
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        path = environ.get('PATH_INFO', '')
+        if path.startswith('/api/py/'):
+            environ['PATH_INFO'] = path.replace('/api/py/', '/api/', 1)
+        elif path == '/api/py':
+            environ['PATH_INFO'] = '/api'
+        return self.wsgi_app(environ, start_response)
+
 app = create_app()
+app.wsgi_app = PrefixMiddleware(app.wsgi_app)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

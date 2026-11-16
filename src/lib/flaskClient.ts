@@ -5,9 +5,12 @@
 
 import { ClassNote, AttendanceRecord, StudentDoubt, DoubtAnswer } from '../types/supabase';
 
+// Base URL resolving via Vercel internal service binding (BACKEND_URL), public proxy, or local fallback
 const BACKEND_BASE =
-  process.env.NEXT_PUBLIC_FLASK_API_URL ||
-  (typeof window !== 'undefined' ? '/api/py' : 'http://127.0.0.1:5000/api');
+  process.env.BACKEND_URL
+    ? `${process.env.BACKEND_URL}/api`
+    : process.env.NEXT_PUBLIC_FLASK_API_URL ||
+      (typeof window !== 'undefined' ? '/api' : 'http://127.0.0.1:5000/api');
 
 export interface BackendHealth {
   status: string;
