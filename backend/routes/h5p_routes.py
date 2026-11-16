@@ -5,6 +5,10 @@ Handles xAPI assessment statements, user scores, and interactive H5P content reg
 
 from flask import Blueprint, jsonify, request
 from datetime import datetime
+from config import Config
+from services.cooper_service import CooperAIService
+import json
+import re
 
 h5p_bp = Blueprint('h5p', __name__)
 
@@ -161,6 +165,33 @@ def generate_video_quiz():
                 raw_candidates = []
                 answer_pool = []
 
+                # If Gemini API is available, generate intelligent pedagogical checkpoints
+                if Config.GEMINI_API_KEY and len(sentences) > 0:
+                    try:
+                        transcript_sample = "\n".join([f"[{fmt_seconds(t)}] {text}" for t, text in sentences[:60]])
+                        gemini_prompt = (
+                            "You are an academic assessment expert. Based on the following timestamped lecture transcript excerpts, "
+                            "generate 3 to 4 multiple-choice in-video checkpoint questions spaced across the video.\n\n"
+                            f"Transcript excerpts:\n{transcript_sample}\n\n"
+                            "Output ONLY a valid JSON array of objects with keys:\n"
+                            "- 'timestamp' (e.g. '0:45')\n"
+                            "- 'question' (clear conceptual question)\n"
+                            "- 'options' (array of 4 distinct choices, with correct answer at index 0)\n"
+                            "- 'correctIdx' (integer 0)\n"
+                        )
+                        gemini_res = CooperAIService.call_gemini(
+                            gemini_prompt,
+                            system_prompt="You generate rigorous, valid JSON assessment checkpoints for university video lectures."
+                        )
+                        if gemini_res:
+                            clean_json = re.search(r'\[.*\]', gemini_res, re.DOTALL)
+                            if clean_json:
+                                parsed = json.loads(clean_json.group(0))
+                                if isinstance(parsed, list) and len(parsed) >= 2:
+                                    checkpoints = parsed
+                    except Exception:
+                        pass
+
                 for i in range(len(sentences) - 1):
                     s_time, s_text = sentences[i]
                     next_time, next_text = sentences[i + 1]
@@ -197,78 +228,79 @@ def generate_video_quiz():
                 # Deduplicate answer pool
                 unique_answers = list(dict.fromkeys(answer_pool))
 
-                # 3. Domain overrides for flagship educational videos (Attention, Biology, etc.)
-                full_corpus = " ".join([s[1].lower() for s in sentences[:80]])
-                if "attention" in full_corpus and "transformer" in full_corpus:
-                    # Provide 5 rigorously accurate mathematical questions spaced across the video
-                    domain_q = [
-                        {
-                            "time": 15.0,
-                            "question": "What 2017 landmark research paper introduced the Attention mechanism described in this video?",
-                            "answer": "Attention Is All You Need (Vaswani et al.)",
-                            "distractors": ["Deep Residual Learning for Vision (He et al.)", "BERT: Pre-training Deep Bidirectional Transformers", "Language Models are Few-Shot Learners (Brown et al.)"]
-                        },
-                        {
-                            "time": 385.0,
-                            "question": "Why does the attention formula divide the dot products Q·K^T by the square root of key dimension √d_k?",
-                            "answer": "To normalize dot-product variance to 1.0 and prevent vanishing softmax gradients",
-                            "distractors": ["To compress sequence length and save VRAM memory", "To eliminate the need for key and value projection weights", "To enforce causal masking during autoregression"]
-                        },
-                        {
-                            "time": 773.0,
-                            "question": "How does Multi-Head Attention enhance representation over a single attention head?",
-                            "answer": "It allows the model to jointly attend to information from multiple representation subspaces at different positions",
-                            "distractors": ["It reduces total matrix multiplications by 50%", "It eliminates the requirement for positional embeddings", "It removes the feed-forward projection layers"]
-                        },
-                        {
-                            "time": 1050.0,
-                            "question": "What is the primary computational bottleneck of standard self-attention relative to sequence length N?",
-                            "answer": "Quadratic complexity O(N²) in both memory and compute time",
-                            "distractors": ["Linear logarithmic complexity O(N log N)", "Exponential time complexity O(2^N)", "Constant time O(1) cache limits"]
-                        },
-                        {
-                            "time": 1380.0,
-                            "question": "What role does the Value matrix V play in the final weighted sum of the Attention layer?",
-                            "answer": "It provides the actual content vectors that are weighted and blended by attention probabilities",
-                            "distractors": ["It computes the scalar compatibility affinity scores", "It normalizes activations across batch dimensions", "It masks future tokens in bidirectional models"]
-                        }
-                    ]
-                    for dq in domain_q:
-                        opts = [dq["answer"]] + dq["distractors"]
-                        checkpoints.append({
-                            "timestamp": fmt_seconds(dq["time"]),
-                            "question": dq["question"],
-                            "options": opts,
-                            "correctIdx": 0
-                        })
+                # 3. Fallback: Domain overrides or heuristic extraction if no AI checkpoints generated
+                if len(checkpoints) == 0:
+                    full_corpus = " ".join([s[1].lower() for s in sentences[:80]])
+                    if "attention" in full_corpus and "transformer" in full_corpus:
+                        # Provide 5 rigorously accurate mathematical questions spaced across the video
+                        domain_q = [
+                            {
+                                "time": 15.0,
+                                "question": "What 2017 landmark research paper introduced the Attention mechanism described in this video?",
+                                "answer": "Attention Is All You Need (Vaswani et al.)",
+                                "distractors": ["Deep Residual Learning for Vision (He et al.)", "BERT: Pre-training Deep Bidirectional Transformers", "Language Models are Few-Shot Learners (Brown et al.)"]
+                            },
+                            {
+                                "time": 385.0,
+                                "question": "Why does the attention formula divide the dot products Q·K^T by the square root of key dimension √d_k?",
+                                "answer": "To normalize dot-product variance to 1.0 and prevent vanishing softmax gradients",
+                                "distractors": ["To compress sequence length and save VRAM memory", "To eliminate the need for key and value projection weights", "To enforce causal masking during autoregression"]
+                            },
+                            {
+                                "time": 773.0,
+                                "question": "How does Multi-Head Attention enhance representation over a single attention head?",
+                                "answer": "It allows the model to jointly attend to information from multiple representation subspaces at different positions",
+                                "distractors": ["It reduces total matrix multiplications by 50%", "It eliminates the requirement for positional embeddings", "It removes the feed-forward projection layers"]
+                            },
+                            {
+                                "time": 1050.0,
+                                "question": "What is the primary computational bottleneck of standard self-attention relative to sequence length N?",
+                                "answer": "Quadratic complexity O(N²) in both memory and compute time",
+                                "distractors": ["Linear logarithmic complexity O(N log N)", "Exponential time complexity O(2^N)", "Constant time O(1) cache limits"]
+                            },
+                            {
+                                "time": 1380.0,
+                                "question": "What role does the Value matrix V play in the final weighted sum of the Attention layer?",
+                                "answer": "It provides the actual content vectors that are weighted and blended by attention probabilities",
+                                "distractors": ["It computes the scalar compatibility affinity scores", "It normalizes activations across batch dimensions", "It masks future tokens in bidirectional models"]
+                            }
+                        ]
+                        for dq in domain_q:
+                            opts = [dq["answer"]] + dq["distractors"]
+                            checkpoints.append({
+                                "timestamp": fmt_seconds(dq["time"]),
+                                "question": dq["question"],
+                                "options": opts,
+                                "correctIdx": 0
+                            })
 
-                # 4. If general video (like interview, podcast, tutorial), generate 5-6 questions evenly spaced
-                elif len(raw_candidates) >= 4:
-                    num_questions = min(6, len(raw_candidates))
-                    step = max(len(raw_candidates) // num_questions, 1)
-                    selected_candidates = [raw_candidates[i * step] for i in range(num_questions)]
+                    # 4. If general video (like interview, podcast, tutorial), generate 5-6 questions evenly spaced
+                    elif len(raw_candidates) >= 4:
+                        num_questions = min(6, len(raw_candidates))
+                        step = max(len(raw_candidates) // num_questions, 1)
+                        selected_candidates = [raw_candidates[i * step] for i in range(num_questions)]
 
-                    for item in selected_candidates:
-                        ans = item['answer']
-                        # Pick 3 plausible distractors from the unique answers pool that aren't this answer
-                        other_answers = [a for a in unique_answers if a != ans and len(a) > 20]
-                        if len(other_answers) >= 3:
-                            distractors = random.sample(other_answers, 3)
-                        else:
-                            distractors = [
-                                "The opposite perspective emphasizing conventional conservative practices",
-                                "An alternative approach that minimizes experimental innovation",
-                                "A contrasting strategy focusing solely on short-term optimization"
-                            ]
+                        for item in selected_candidates:
+                            ans = item['answer']
+                            # Pick 3 plausible distractors from the unique answers pool that aren't this answer
+                            other_answers = [a for a in unique_answers if a != ans and len(a) > 20]
+                            if len(other_answers) >= 3:
+                                distractors = random.sample(other_answers, 3)
+                            else:
+                                distractors = [
+                                    "The opposite perspective emphasizing conventional conservative practices",
+                                    "An alternative approach that minimizes experimental innovation",
+                                    "A contrasting strategy focusing solely on short-term optimization"
+                                ]
 
-                        options = [ans] + distractors[:3]
-                        # Put correct answer at index 0 for clean evaluation
-                        checkpoints.append({
-                            "timestamp": fmt_seconds(item['time']),
-                            "question": item['question'],
-                            "options": options,
-                            "correctIdx": 0
-                        })
+                            options = [ans] + distractors[:3]
+                            # Put correct answer at index 0 for clean evaluation
+                            checkpoints.append({
+                                "timestamp": fmt_seconds(item['time']),
+                                "question": item['question'],
+                                "options": options,
+                                "correctIdx": 0
+                            })
 
         except Exception as e:
             # Fallback if transcript fetching encounters an issue

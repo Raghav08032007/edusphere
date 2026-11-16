@@ -1,12 +1,31 @@
 import re
+import json
+import logging
+import requests
 from typing import Dict, Any, List, Optional
+from config import Config
+
+logger = logging.getLogger(__name__)
 
 class CooperAIService:
     """
     Cooper AI Academic Tutor Service
+    Powered by Google Gemini API (gemini-2.5-flash) with graceful local fallback.
     Provides conversational pedagogical tutoring, step-by-step formula derivations,
-    and question bank dissections.
+    multimodal handwritten equation solving, and question bank dissections.
     """
+
+    SYSTEM_INSTRUCTION = (
+        "You are Cooper, an elite academic AI tutor on the Edusphere learning platform. "
+        "Your mission is to provide rigorous, clear, and pedagogical explanations for students in "
+        "STEM disciplines (Computer Science, Mathematics, Electrical Engineering, Physics, AI/ML). "
+        "Guidelines:\n"
+        "1. FORMATTING: Always write mathematical formulas, derivations, and equations in GitHub-style KaTeX LaTeX: "
+        "use '$$...$$' on separate lines for multi-term or block equations, and '$...$' for inline notation.\n"
+        "2. STRUCTURE: Break down answers into: (a) Core Intuition/Thesis, (b) Mathematical Derivation / Formal Mechanics, "
+        "(c) Practical Examples or Pitfalls, and (d) Recommended Next Steps.\n"
+        "3. TONE: Scholarly, encouraging, clear, and focused on deep conceptual understanding."
+    )
 
     KNOWLEDGE_BASE = {
         "raft": {
@@ -42,9 +61,88 @@ class CooperAIService:
     }
 
     @classmethod
+    def call_gemini(cls, prompt: str, system_prompt: Optional[str] = None, image_base64: Optional[str] = None, mime_type: str = "image/jpeg") -> Optional[str]:
+        """
+        Invokes Google Gemini API with automatic fallback to secondary models if necessary.
+        """
+        api_key = Config.GEMINI_API_KEY
+        if not api_key:
+            return None
+
+        models = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"]
+        headers = {"Content-Type": "application/json"}
+
+        parts: List[Dict[str, Any]] = [{"text": prompt}]
+        if image_base64:
+            clean_b64 = re.sub(r'^data:image\/[a-zA-Z]+;base64,', '', image_base64.strip())
+            parts.append({
+                "inline_data": {
+                    "mime_type": mime_type,
+                    "data": clean_b64
+                }
+            })
+
+        body: Dict[str, Any] = {
+            "contents": [{"parts": parts}],
+            "generationConfig": {
+                "temperature": 0.3,
+                "topP": 0.95,
+                "maxOutputTokens": 2048,
+            }
+        }
+
+        sys_instruction = system_prompt or cls.SYSTEM_INSTRUCTION
+        if sys_instruction:
+            body["systemInstruction"] = {
+                "parts": [{"text": sys_instruction}]
+            }
+
+        for model in models:
+            endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            try:
+                resp = requests.post(endpoint, headers=headers, json=body, timeout=18)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        content_parts = candidates[0].get("content", {}).get("parts", [])
+                        text_chunks = [p.get("text", "") for p in content_parts if "text" in p]
+                        if text_chunks:
+                            return "".join(text_chunks)
+                else:
+                    logger.warning(f"Gemini API returned status {resp.status_code} on {model}: {resp.text[:120]}")
+            except Exception as e:
+                logger.error(f"Error calling Gemini API on {model}: {e}")
+                continue
+
+        return None
+
+    @classmethod
     def generate_response(cls, prompt: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         prompt_lower = prompt.lower()
-        
+        user_name = context.get("user_name", "Scholar") if context else "Scholar"
+        attendance_rate = context.get("attendance_rate") if context else None
+
+        # Try Gemini API first if configured
+        if Config.GEMINI_API_KEY:
+            student_context = f"Student Name: {user_name}."
+            if attendance_rate is not None:
+                student_context += f" Current Attendance: {attendance_rate}%."
+            full_user_prompt = f"[{student_context}]\nStudent Inquiry: {prompt}"
+
+            gemini_text = cls.call_gemini(full_user_prompt)
+            if gemini_text:
+                return {
+                    "response": gemini_text,
+                    "topic": "Academic Dissection (Gemini AI)",
+                    "latex_included": "$" in gemini_text,
+                    "suggested_actions": [
+                        "Derive this step-by-step with proofs",
+                        "Generate a practice question",
+                        "Summarize key exam takeaways"
+                    ],
+                }
+
         # Check topic match in curated academic knowledge base
         matched_topic = None
         for key in cls.KNOWLEDGE_BASE:
@@ -73,10 +171,7 @@ class CooperAIService:
                 ],
             }
 
-        # Context-aware answering
-        user_name = context.get("user_name", "Scholar") if context else "Scholar"
-        attendance_rate = context.get("attendance_rate") if context else None
-        
+        # Context-aware answering for attendance
         if "attendance" in prompt_lower and attendance_rate is not None:
             status = "Verified and eligible for exams" if attendance_rate >= 75 else "Below the 75% threshold"
             content = (

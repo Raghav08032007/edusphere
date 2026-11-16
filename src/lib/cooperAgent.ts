@@ -5,6 +5,7 @@
 
 import { UserProfile, ClassNote, AttendanceRecord, StudentDoubt } from '../types/supabase';
 import { isLiveSupabaseConfigured } from './supabaseClient';
+import { chatWithFlaskCooper } from './flaskClient';
 
 export interface CooperAgentContext {
   currentUser: UserProfile;
@@ -185,9 +186,27 @@ export async function askCooper(
     };
   }
 
+  // Attempt Gemini-powered Academic Tutoring via Flask Backend
+  try {
+    const flaskCooperRes = await chatWithFlaskCooper(userMessage, currentUser.id, currentUser.fullName);
+    if (flaskCooperRes?.success && flaskCooperRes.response) {
+      toolCalls.push({
+        tool: 'cooper_gemini_academic_tutor',
+        summary: `Synthesized pedagogical derivation via Google Gemini API${flaskCooperRes.topic ? ` [${flaskCooperRes.topic}]` : ''}`,
+      });
+      return {
+        reply: flaskCooperRes.response,
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      };
+    }
+  } catch {
+    // Continue to offline fallback
+  }
+
   // CONCEPTUAL EXPLANATIONS & ACADEMIC HELP
   if (lower.includes('explain') || lower.includes('what is') || lower.includes('how does') || lower.includes('why')) {
     return {
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
       reply: `### Academic Concept Breakdown from Cooper\n\n` +
         `You asked: *"${userMessage}"*\n\n` +
         `Here is a concise, exam-ready explanation:\n\n` +
@@ -200,6 +219,7 @@ export async function askCooper(
 
   // DEFAULT CONVERSATIONAL GREETING & CAPABILITIES
   return {
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     reply: `Hi **${currentUser.fullName}**! I'm **Cooper**, your AI Academic Tutor on Edusphere.\n\n` +
       `Here is what I can do for you right now using live **Academic MCP tools**:\n` +
       `• 📊 **Check Attendance**: Ask *"What is my attendance percentage?"*\n` +

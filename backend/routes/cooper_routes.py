@@ -1,5 +1,6 @@
 import base64
 from flask import Blueprint, request, jsonify
+from config import Config
 from services.cooper_service import CooperAIService
 from services.supabase_service import ATTENDANCE_STORE, NOTES_STORE, DOUBTS_STORE
 
@@ -50,6 +51,29 @@ def solve_image():
     data = request.get_json() or {}
     image_base64 = data.get('imageBase64', '')
     prompt = data.get('prompt', 'Analyze this handwritten formula and provide step-by-step mathematical proof.')
+
+    # If Gemini API Key is configured, run multimodal vision analysis
+    if Config.GEMINI_API_KEY and image_base64:
+        vision_prompt = (
+            f"You are Cooper, an elite academic AI tutor. Analyze this mathematical, physics, or engineering problem image.\n"
+            f"Prompt: {prompt}\n"
+            f"Requirements:\n"
+            f"1. Transcribe the formula/problem accurately.\n"
+            f"2. Provide a rigorous, step-by-step proof/solution with all equations written in GitHub-style KaTeX LaTeX ($$..$$ and $..$).\n"
+            f"3. Explain common pitfalls and edge cases."
+        )
+        gemini_result = CooperAIService.call_gemini(
+            prompt=vision_prompt,
+            image_base64=image_base64,
+            mime_type=data.get('mimeType', 'image/jpeg')
+        )
+        if gemini_result:
+            return jsonify({
+                "success": True,
+                "dissection": gemini_result,
+                "detectedTopic": "Multimodal Visual Problem Solving (Gemini Vision)",
+                "latexIncluded": "$" in gemini_result,
+            }), 200
 
     # Provide structured pedagogical dissection
     response = (

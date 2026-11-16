@@ -23,3 +23,6 @@ class Config:
     
     JWT_SECRET = os.getenv('JWT_SECRET', 'edusphere-academic-jwt-secret-key-2026')
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
+    
+    # Gemini AI Configuration
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY', '')
