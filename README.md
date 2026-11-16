@@ -1,6 +1,6 @@
-# ⚡ Eduspheere — Premium E-Learning SaaS Platform
+# ⚡ Edusphere — Premium E-Learning SaaS Platform
 
-Eduspheere is a production-oriented academic e-learning SaaS platform inspired by the structured curriculum hierarchy of **Coursera** and the mentorship and interactive warmth of **Vedantu**, designed with a distinctive **White & Warm Golden-Amber** aesthetic and **Adorn** serif display typography.
+Edusphere is a production-oriented academic e-learning SaaS platform inspired by the structured curriculum hierarchy of **Coursera** and the mentorship and interactive warmth of **Vedantu**, designed with a distinctive **White & Warm Golden-Amber** aesthetic and **Adorn** serif display typography.
 
 ---
 

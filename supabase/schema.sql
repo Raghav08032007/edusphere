@@ -411,14 +411,34 @@ create trigger on_auth_user_created
 -- 16. STORAGE BUCKET CONFIGURATION (For Notes Attachments)
 insert into storage.buckets (id, name, public)
 values ('class-notes', 'class-notes', true)
-on conflict (id) do nothing;
+on conflict (id) do update set public = true;
 
-create policy "Public Access to Class Notes Bucket"
+-- Allow read access to class-notes for all users
+drop policy if exists "Public Access to Class Notes Bucket" on storage.objects;
+drop policy if exists "Allow read on class-notes bucket" on storage.objects;
+create policy "Allow read on class-notes bucket"
     on storage.objects for select
-    to authenticated
     using (bucket_id = 'class-notes');
 
-create policy "Staff Uploads to Class Notes Bucket"
+-- Allow authenticated staff to upload to class-notes bucket
+drop policy if exists "Staff Uploads to Class Notes Bucket" on storage.objects;
+drop policy if exists "Allow staff upload to class-notes bucket" on storage.objects;
+create policy "Allow staff upload to class-notes bucket"
     on storage.objects for insert
     to authenticated
     with check (bucket_id = 'class-notes' and public.is_staff());
+
+-- Allow staff update (required for storage upsert)
+drop policy if exists "Allow staff update to class-notes bucket" on storage.objects;
+create policy "Allow staff update to class-notes bucket"
+    on storage.objects for update
+    to authenticated
+    using (bucket_id = 'class-notes' and public.is_staff())
+    with check (bucket_id = 'class-notes' and public.is_staff());
+
+-- Allow staff to delete attachments
+drop policy if exists "Allow staff delete from class-notes bucket" on storage.objects;
+create policy "Allow staff delete from class-notes bucket"
+    on storage.objects for delete
+    to authenticated
+    using (bucket_id = 'class-notes' and public.is_staff());

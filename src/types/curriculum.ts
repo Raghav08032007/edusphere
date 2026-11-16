@@ -1,5 +1,5 @@
 // ==============================================================================
-// EDUSPHEERE CURRICULUM, COURSE, QUESTION BANK & ASSESSMENT TYPES
+// EDUSPHERE CURRICULUM, COURSE, QUESTION BANK & ASSESSMENT TYPES
 // Inspired by Coursera course structure and Vedantu interactive learning
 // ==============================================================================
 
@@ -40,6 +40,15 @@ export interface Question {
   };
 }
 
+export interface VideoCheckpoint {
+  id: string;
+  timestamp: string; // e.g. "0:15"
+  seconds: number;
+  question: string;
+  options: string[];
+  correctIdx: number;
+}
+
 export interface CourseTopic {
   id: string;
   moduleId: string;
@@ -51,6 +60,13 @@ export interface CourseTopic {
   isBookmarked: boolean;
   note: TopicNote;
   questions: Question[];
+  videoUrl?: string;
+  videoDurationMinutes?: number;
+  videoThumbnail?: string;
+  videoChapters?: { time: string; seconds: number; title: string }[];
+  videoTranscript?: { time: string; text: string }[];
+  videoCheckpoints?: VideoCheckpoint[];
+  referenceNotes?: string;
 }
 
 export interface CourseModule {

@@ -56,7 +56,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
         <div className="text-center space-y-2 mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-black tracking-wide">
             <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
-            <span>Eduspheere Academic Suite • Learning Portal</span>
+            <span>Edusphere Academic Suite • Learning Portal</span>
           </div>
 
           <h2 className="font-heading text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">

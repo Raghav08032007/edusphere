@@ -11,7 +11,15 @@ import {
   StudentDoubt,
   DoubtAnswer,
 } from '../types/supabase';
-import { Course, CourseTopic, CourseQuiz, QuizAttemptResult } from '../types/curriculum';
+import {
+  Course,
+  CourseTopic,
+  CourseQuiz,
+  QuizAttemptResult,
+  VideoCheckpoint,
+  QuestionType,
+  DifficultyLevel,
+} from '../types/curriculum';
 import {
   supabase,
   DEMO_STAFF_USERS,
@@ -22,11 +30,13 @@ import {
   INITIAL_DOUBTS,
 } from '../lib/supabaseClient';
 import { INITIAL_COURSES } from '../data/coursesData';
+import { SideNavbar } from './layout/SideNavbar';
 import { YellowWhiteNavbar } from './layout/YellowWhiteNavbar';
 import { AuthModal } from './auth/AuthModal';
 import { StaffNotesManager } from './staff/StaffNotesManager';
 import { StaffAttendanceView } from './staff/StaffAttendanceView';
 import { StaffDoubtsQueue } from './staff/StaffDoubtsQueue';
+import { MentorVideoStudio } from './staff/MentorVideoStudio';
 import { StudentNotesView } from './student/StudentNotesView';
 import { StudentAttendanceView } from './student/StudentAttendanceView';
 import { StudentDoubtsView } from './student/StudentDoubtsView';
@@ -39,6 +49,8 @@ import { CourseDetailView } from './learning/CourseDetailView';
 import { TopicNoteReader } from './learning/TopicNoteReader';
 import { TopicQuestionBank } from './learning/TopicQuestionBank';
 import { QuizAssessmentView } from './learning/QuizAssessmentView';
+import { GamifiedArenaView } from './learning/GamifiedArenaView';
+import { OpenLabsHubView } from './labs/OpenLabsHubView';
 
 export const StudyPilotApp: React.FC = () => {
   // Current logged in profile: starts as Student (Param Sahar), switchable to Staff (Dr. K. Rajan)
@@ -81,20 +93,34 @@ export const StudyPilotApp: React.FC = () => {
     // Hydrate local cached academic data & check auth params
     const timer = setTimeout(() => {
       try {
-        // Check for OAuth callback error in URL parameters
+        // Check for URL parameters (e.g. ?tab=staff-videos&role=staff from Mentor Login)
         if (typeof window !== 'undefined') {
           const searchParams = new URLSearchParams(window.location.search);
           const authError = searchParams.get('authError');
           if (authError) {
             showToast(`⚠️ Authentication Error: ${decodeURIComponent(authError)}`);
-            // Remove error query param cleanly from URL
             const cleanUrl = window.location.pathname;
             window.history.replaceState({}, document.title, cleanUrl);
           }
-        }
 
-        const cachedUser = localStorage.getItem('studypilot_active_user');
-        if (cachedUser) setCurrentUser(JSON.parse(cachedUser));
+          const tabParam = searchParams.get('tab');
+          const roleParam = searchParams.get('role');
+
+          if (roleParam === 'staff' || tabParam === 'staff-videos' || tabParam === 'staff-notes') {
+            setCurrentUser(DEMO_STAFF_USERS[0]);
+            setActiveTab(tabParam || 'staff-videos');
+            showToast(`👨‍🏫 Signed in as Mentor: ${DEMO_STAFF_USERS[0].fullName}!`);
+          } else {
+            const cachedUser = localStorage.getItem('studypilot_active_user');
+            if (cachedUser) {
+              const u = JSON.parse(cachedUser);
+              setCurrentUser(u);
+              if (u.role === 'staff') {
+                setActiveTab(tabParam || 'staff-videos');
+              }
+            }
+          }
+        }
 
         const cachedNotes = localStorage.getItem('studypilot_notes');
         if (cachedNotes) {
@@ -112,10 +138,10 @@ export const StudyPilotApp: React.FC = () => {
         const cachedDoubts = localStorage.getItem('studypilot_doubts');
         if (cachedDoubts) setDoubts(JSON.parse(cachedDoubts));
 
-        const cachedCourses = localStorage.getItem('eduspheere_courses');
+        const cachedCourses = localStorage.getItem('edusphere_courses');
         if (cachedCourses) setCourses(JSON.parse(cachedCourses));
 
-        const cachedHistory = localStorage.getItem('eduspheere_quiz_history');
+        const cachedHistory = localStorage.getItem('edusphere_quiz_history');
         if (cachedHistory) setQuizHistory(JSON.parse(cachedHistory));
       } catch {}
     }, 0);
@@ -210,8 +236,8 @@ export const StudyPilotApp: React.FC = () => {
       localStorage.setItem('studypilot_notes', JSON.stringify(notes));
       localStorage.setItem('studypilot_attendance', JSON.stringify(attendance));
       localStorage.setItem('studypilot_doubts', JSON.stringify(doubts));
-      localStorage.setItem('eduspheere_courses', JSON.stringify(courses));
-      localStorage.setItem('eduspheere_quiz_history', JSON.stringify(quizHistory));
+      localStorage.setItem('edusphere_courses', JSON.stringify(courses));
+      localStorage.setItem('edusphere_quiz_history', JSON.stringify(quizHistory));
     } catch {}
   }, [currentUser, notes, attendance, doubts, courses, quizHistory]);
 
@@ -219,7 +245,7 @@ export const StudyPilotApp: React.FC = () => {
   const handleSwitchRole = (newRole: UserRole) => {
     if (newRole === 'staff') {
       setCurrentUser(DEMO_STAFF_USERS[0]); // Dr. K. Rajan
-      setActiveTab('staff-notes');
+      setActiveTab('staff-videos');
       showToast('👨‍🏫 Switched to Faculty Portal: Dr. K. Rajan (Dean & Professor)');
     } else {
       setCurrentUser(DEMO_STUDENT_USERS[0]); // Param Sahar
@@ -280,6 +306,119 @@ export const StudyPilotApp: React.FC = () => {
   const handleDeleteNote = (noteId: string) => {
     setNotes((prev) => prev.filter((n) => n.id !== noteId));
     showToast('🗑️ Note removed from class materials.');
+  };
+
+  // Track last published topic by mentor
+  const [lastPublishedTopic, setLastPublishedTopic] = useState<{ courseId: string; topicId: string } | null>(null);
+
+  // Staff / Mentor: Publish Interactive Video with Checkpoints & Reference Notes
+  const handlePublishMentorVideo = (videoData: {
+    title: string;
+    courseId: string;
+    moduleId: string;
+    videoUrl: string;
+    videoDurationMinutes: number;
+    referenceNotes?: string;
+    checkpoints: VideoCheckpoint[];
+    notesAttachment?: {
+      title: string;
+      content: string;
+      className: string;
+      attachmentName?: string;
+      attachmentUrl?: string;
+    };
+  }) => {
+    const newTopicId = `topic-mentor-${Date.now()}`;
+    setLastPublishedTopic({ courseId: videoData.courseId, topicId: newTopicId });
+
+    // 1. Update courses state with new topic in target module
+    setCourses((prevCourses) => {
+      return prevCourses.map((c) => {
+        if (c.id !== videoData.courseId) return c;
+        return {
+          ...c,
+          modules: c.modules.map((m) => {
+            if (m.id !== videoData.moduleId) return m;
+            const newTopic: CourseTopic = {
+              id: newTopicId,
+              moduleId: m.id,
+              courseId: c.id,
+              topicNumber: m.topics.length + 1,
+              title: videoData.title,
+              estimatedMinutes: videoData.videoDurationMinutes || 25,
+              isCompleted: false,
+              isBookmarked: false,
+              videoUrl: videoData.videoUrl,
+              videoDurationMinutes: videoData.videoDurationMinutes || 25,
+              videoCheckpoints: videoData.checkpoints,
+              referenceNotes: videoData.referenceNotes,
+              note: {
+                id: `note-mentor-${Date.now()}`,
+                title: `${videoData.title} - Faculty Lecture Notes`,
+                readingMinutes: 12,
+                content:
+                  videoData.referenceNotes ||
+                  `# ${videoData.title}\n\nLecture video reference and key takeaways.`,
+                keyTakeaways: [
+                  'In-video interactive checkpoint assessment mastery.',
+                  'Mandatory checkpoint gate verification with adaptive rewind.',
+                  'Reference derivations and core principles.',
+                ],
+                handoutName: videoData.notesAttachment?.attachmentName,
+                handoutUrl: videoData.notesAttachment?.attachmentUrl,
+                updatedAt: new Date().toISOString().split('T')[0],
+              },
+              questions: videoData.checkpoints.map((cp, idx) => ({
+                id: `q-chk-${idx}-${Date.now()}`,
+                courseId: c.id,
+                courseName: c.title,
+                moduleId: m.id,
+                moduleTitle: m.title,
+                topicId: newTopicId,
+                topicTitle: videoData.title,
+                type: 'mcq_single' as QuestionType,
+                difficulty: 'Intermediate' as DifficultyLevel,
+                questionText: cp.question,
+                options: cp.options,
+                correctIndices: [cp.correctIdx],
+                explanation: `Checkpoint assessment at timestamp ${cp.timestamp}. Concept mastered through lecture segment.`,
+              })),
+            };
+            return {
+              ...m,
+              topics: [...m.topics, newTopic],
+            };
+          }),
+        };
+      });
+    });
+
+    // 2. If mentor also specified notes attachment, publish to class notes
+    if (videoData.notesAttachment) {
+      const newClassNote: ClassNote = {
+        id: `note-class-${Date.now()}`,
+        classId: 'class-1',
+        className: videoData.notesAttachment.className || 'CS-101 / Quantum-101',
+        staffId: currentUser.id,
+        staffName: currentUser.fullName,
+        title: videoData.notesAttachment.title,
+        subject: 'Curriculum & Video Reference',
+        content: videoData.notesAttachment.content,
+        attachmentName: videoData.notesAttachment.attachmentName,
+        attachmentUrl: videoData.notesAttachment.attachmentUrl,
+        tags: [
+          'Lecture Video',
+          'Checkpoints',
+          'Formulas',
+          videoData.notesAttachment.attachmentName ? 'Handout' : 'Notes',
+        ],
+        isPublished: true,
+        createdAt: new Date().toISOString(),
+      };
+      setNotes((prev) => [newClassNote, ...prev]);
+    }
+
+    showToast(`🎬 Video lecture & reference notes "${videoData.title}" published for students!`);
   };
 
   // Staff: Save Attendance
@@ -455,8 +594,8 @@ export const StudyPilotApp: React.FC = () => {
         </div>
       )}
 
-      {/* Top Navbar */}
-      <YellowWhiteNavbar
+      {/* Side Navbar */}
+      <SideNavbar
         currentUser={currentUser}
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -478,10 +617,29 @@ export const StudyPilotApp: React.FC = () => {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 lg:pl-72 w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-6 space-y-8 min-h-screen">
         {/* STAFF VIEWS */}
         {isStaff && (
           <>
+            {activeTab === 'staff-videos' && (
+              <MentorVideoStudio
+                currentUser={currentUser}
+                courses={courses}
+                onPublishVideo={handlePublishMentorVideo}
+                onPreviewAsStudent={(targetCourseId, targetTopicId) => {
+                  handleSwitchRole('student');
+                  const cid = targetCourseId || lastPublishedTopic?.courseId || courses[0]?.id;
+                  const tid = targetTopicId || lastPublishedTopic?.topicId;
+                  if (cid) setSelectedCourseId(cid);
+                  if (tid) {
+                    setSelectedTopicId(tid);
+                    setTopicViewMode('note');
+                  }
+                  setActiveTab('courses');
+                }}
+              />
+            )}
+
             {activeTab === 'staff-notes' && (
               <StaffNotesManager
                 currentUser={currentUser}
@@ -507,6 +665,34 @@ export const StudyPilotApp: React.FC = () => {
                 doubts={doubts}
                 onAnswerDoubt={handleAnswerDoubt}
               />
+            )}
+
+            {/* Faculty Previews for Courses, Videos, and Arena */}
+            {activeTab === 'courses' && (
+              <CourseCatalogueView
+                courses={courses}
+                onSelectCourse={(courseId) => {
+                  setSelectedCourseId(courseId);
+                  setSelectedTopicId(null);
+                  setSelectedQuizId(null);
+                }}
+                onOpenTopic={(courseId, topicId) => {
+                  setSelectedCourseId(courseId);
+                  setSelectedTopicId(topicId);
+                  setTopicViewMode('note');
+                }}
+              />
+            )}
+
+            {activeTab === 'arena' && (
+              <GamifiedArenaView
+                currentUser={currentUser}
+                onBackToDashboard={() => setActiveTab('staff-notes')}
+              />
+            )}
+
+            {activeTab === 'labs' && (
+              <OpenLabsHubView />
             )}
           </>
         )}
@@ -544,6 +730,7 @@ export const StudyPilotApp: React.FC = () => {
                 onOpenAttendance={() => setActiveTab('attendance')}
                 onOpenDoubts={() => setActiveTab('doubts')}
                 onOpenCooperWithQuery={handleLaunchCooperWithQuery}
+                onOpenArena={() => setActiveTab('arena')}
               />
             )}
 
@@ -794,6 +981,19 @@ export const StudyPilotApp: React.FC = () => {
                 onAskCooper={handleLaunchCooperWithQuery}
               />
             )}
+
+            {/* 8. GAMIFIED TRIGONOMETRY BOSS ARENA */}
+            {activeTab === 'arena' && (
+              <GamifiedArenaView
+                currentUser={currentUser}
+                onBackToDashboard={() => setActiveTab('dashboard')}
+              />
+            )}
+
+            {/* 9. OPEN LABS & INNOVATION HUB */}
+            {activeTab === 'labs' && (
+              <OpenLabsHubView />
+            )}
           </>
         )}
 
@@ -863,7 +1063,7 @@ export const StudyPilotApp: React.FC = () => {
       <footer className="border-t border-yellow-200 bg-white py-8 text-center text-xs text-slate-500 space-y-2">
         <div className="flex items-center justify-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-          <span className="font-adorn font-bold text-slate-800 text-sm">Eduspheere Platform</span>
+          <span className="font-adorn font-bold text-slate-800 text-sm">Edusphere Platform</span>
           <span>•</span>
           <span>Academic Study, Analysis &amp; Doubt-Clearing System</span>
         </div>

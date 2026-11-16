@@ -14,7 +14,10 @@ import {
 } from '../types/supabase';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  '';
 
 export const isLiveSupabaseConfigured = Boolean(
   supabaseUrl && supabaseUrl.startsWith('https://') && supabaseAnonKey
@@ -183,7 +186,7 @@ $$\\oint \\vec{B} \\cdot d\\vec{l} = \\mu_0 I_{\\text{enc}} + \\mu_0 \\epsilon_0
 3. **Poynting Vector Energy Flux**: $\\vec{S} = \\frac{1}{\\mu_0} (\\vec{E} \\times \\vec{B})$, representing directional power flow per unit area in $\\text{W/m}^2$.
 
 *Recommended Problem Set*: Solve Exercise 8.1 to 8.14 in Chapter 8 before Friday's seminar.`,
-    attachmentUrl: 'https://example.com/docs/physics-em-waves-lecture-04.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'EM_Waves_Detailed_Derivations.pdf',
     tags: ['Electrodynamics', 'Maxwell Equations', 'JEE Advanced'],
     isPublished: true,
@@ -216,7 +219,7 @@ $$\\beta = y_{n+1} - y_n = \\frac{\\lambda D}{d}$$
 ### Resultant Intensity Profile:
 $$I(\\delta) = 4 I_0 \\cos^2\\left(\\frac{\\delta}{2}\\right) \\quad \\text{where } \\delta = \\frac{2\\pi}{\\lambda} \\Delta x$$
 Under submerged dielectric media of refractive index $\\mu$, the wavelength contracts to $\\lambda' = \\lambda / \\mu$, compressing fringe width to $\\beta' = \\beta / \\mu$.`,
-    attachmentUrl: 'https://example.com/docs/wave-optics-ydse.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'YDSE_Interference_Derivation.pdf',
     tags: ['Wave Optics', 'Interference', 'YDSE', 'Coherence'],
     isPublished: true,
@@ -250,7 +253,7 @@ $$\\lambda = \\frac{h}{p} = \\frac{h}{mv} = \\frac{h}{\\sqrt{2 m E}}$$
 For an electron accelerated through an electrostatic potential difference $V$:
 $$\\lambda_e = \\frac{1.227}{\\sqrt{V}} \\text{ nm}$$
 Verified experimentally by the Davisson-Germer electron diffraction apparatus on nickel crystal lattices.`,
-    attachmentUrl: 'https://example.com/docs/photoelectric-effect.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'Einstein_Photoelectric_Theory.pdf',
     tags: ['Quantum Physics', 'Photoelectric Effect', 'Matter Waves'],
     isPublished: true,
@@ -280,7 +283,7 @@ For large projection dimensions $d_k$, the dot product yields large magnitudes t
 ### Multi-Head Projection:
 $$\\text{MultiHead}(Q, K, V) = \\text{Concat}(\\text{head}_1, \\dots, \\text{head}_h) W^O$$
 where each $\\text{head}_i = \\text{Attention}(Q W_i^Q, K W_i^K, V W_i^V)$.`,
-    attachmentUrl: 'https://example.com/docs/attention-derivation-notes.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'Self_Attention_Mathematical_Proof.pdf',
     tags: ['AI/ML', 'Transformers', 'Deep Learning'],
     isPublished: true,
@@ -319,7 +322,7 @@ $$\\text{Timeout} \\in [150\\text{ms}, 300\\text{ms}]$$
 An entry is committed once replicated onto a strict majority (quorum):
 $$Q = \\left\\lfloor \\frac{N}{2} \\right\\rfloor + 1$$
 A leader cannot commit an entry from a previous term purely by counting replicas; it must commit an entry from its own current term.`,
-    attachmentUrl: 'https://example.com/docs/raft-consensus-spec.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'Raft_Consensus_Specification.pdf',
     tags: ['Distributed Systems', 'Raft', 'Fault Tolerance', 'Consensus'],
     isPublished: true,
@@ -411,7 +414,7 @@ $$\\oiint_{\\partial V} \\vec{F} \\cdot d\\vec{S} = \\iiint_V (\\nabla \\cdot \\
 ### Physical Meaning in Fluid Mechanics:
 - $\\nabla \\cdot \\vec{F}$: Local source/sink generation density per unit volume.
 - $\\nabla \\times \\vec{F}$: Local vorticity and circulation angular momentum vector.`,
-    attachmentUrl: 'https://example.com/docs/vector-calculus-theorems.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'Stokes_And_Gauss_Divergence.pdf',
     tags: ['Multivariable Calculus', 'Stokes Theorem', 'Vector Fields'],
     isPublished: true,
@@ -476,7 +479,7 @@ Between two temperatures $T_1$ and $T_2$:
 $$\\ln\\left(\\frac{k_2}{k_1}\\right) = \\frac{E_a}{R} \\left(\\frac{1}{T_1} - \\frac{1}{T_2}\\right)$$
 
 Where $E_a$ is the activation energy barrier required to reach the Transition State complex.`,
-    attachmentUrl: 'https://example.com/docs/chemical-kinetics-guide.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'Integrated_Rate_Laws_Guide.pdf',
     tags: ['Chemistry', 'Chemical Kinetics', 'Arrhenius Equation', 'Half Life'],
     isPublished: true,
@@ -510,7 +513,7 @@ CFT treats metal-ligand interactions as electrostatic point charges. Under an oc
 
 ### Spectrochemical Series:
 $$I^- < Br^- < S^{2-} < Cl^- < F^- < OH^- < H_2O < NH_3 < en < NO_2^- < CN^- < CO$$`,
-    attachmentUrl: 'https://example.com/docs/crystal-field-theory.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'Crystal_Field_Splitting_Diagrams.pdf',
     tags: ['Chemistry', 'Coordination Compounds', 'Crystal Field Theory'],
     isPublished: true,
@@ -574,7 +577,7 @@ DNA replication in living cells is semiconservative, bidirectional, and strictly
 
 ### Fidelity & Proofreading:
 DNA Polymerase III utilizes intrinsic $3' \\to 5'$ exonuclease proofreading to excise mismatched nucleotides, driving the raw replication error rate down from $10^{-5}$ to $10^{-7}$. Subsequent mismatch repair systems achieve an overall fidelity of $10^{-10}$.`,
-    attachmentUrl: 'https://example.com/docs/dna-replication-fork.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'Replication_Fork_Enzymology.pdf',
     tags: ['Biology', 'Molecular Genetics', 'DNA Replication', 'Polymerase'],
     isPublished: true,
@@ -614,7 +617,7 @@ The peptide bond itself ($\\omega$) is constrained to planar $180^\\circ$ (trans
 ### Geometry of Secondary Motifs:
 1. **$\\alpha$-Helix**: $\\phi \\approx -57^\\circ, \\psi \\approx -47^\\circ$. 3.6 residues per turn, 5.4 Å pitch. Strong internal $i \\to i+4$ backbone hydrogen bonds ($C=O_i \\cdots H-N_{i+4}$).
 2. **$\\beta$-Pleated Sheet**: $\\phi \\approx -120^\\circ, \\psi \\approx +120^\\circ$. Extended pleated chains with inter-strand hydrogen bonds.`,
-    attachmentUrl: 'https://example.com/docs/ramachandran-plots.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'Protein_Structural_Conformations.pdf',
     tags: ['Biology', 'Structural Biology', 'Protein Folding', 'Ramachandran Plot'],
     isPublished: true,
@@ -656,7 +659,7 @@ H(i, j-1) + d
 ### Scoring Matrices:
 - **BLOSUM62**: Derived from blocks of aligned protein families with $\\le 62\\%$ identity; optimized for functional domain discovery.
 - **PAM250**: Models deep evolutionary divergence based on Point Accepted Mutations.`,
-    attachmentUrl: 'https://example.com/docs/bioinformatics-alignment.pdf',
+    attachmentUrl: undefined,
     attachmentName: 'Sequence_Alignment_Algorithms.pdf',
     tags: ['Biology', 'Bioinformatics', 'Dynamic Programming', 'Sequence Alignment'],
     isPublished: true,
@@ -760,7 +763,7 @@ export const INITIAL_COOPER_MESSAGES: CooperChatMessage[] = [
   {
     id: 'cooper-msg-welcome',
     sender: 'cooper',
-    content: "👋 Hi! I'm **Cooper**, your dedicated AI Academic Tutor.\n\nI have live access to your **class notes**, **attendance percentage**, and **doubts queue** via Eduspheere and MCP tools.\n\nTry asking me:\n• *What is my attendance percentage?*\n• *Show me recent physics notes*\n• *Explain Maxwell's displacement current*\n• *Help me write a doubt for my teacher*",
+    content: "👋 Hi! I'm **Cooper**, your dedicated AI Academic Tutor.\n\nI have live access to your **class notes**, **attendance percentage**, and **doubts queue** via Edusphere and MCP tools.\n\nTry asking me:\n• *What is my attendance percentage?*\n• *Show me recent physics notes*\n• *Explain Maxwell's displacement current*\n• *Help me write a doubt for my teacher*",
     timestamp: 'Just now',
   },
 ];

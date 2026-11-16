@@ -1,5 +1,5 @@
 // ==============================================================================
-// EDUSPHEERE ACADEMIC CURRICULUM DATA STORE
+// EDUSPHERE ACADEMIC CURRICULUM DATA STORE
 // Rigorous Coursera/Vedantu course hierarchies with modules, notes, and question banks
 // ==============================================================================
 
@@ -49,6 +49,47 @@ export const INITIAL_COURSES: Course[] = [
             estimatedMinutes: 45,
             isCompleted: true,
             isBookmarked: true,
+            videoUrl: 'https://www.youtube-nocookie.com/embed/vYp4LYbnnW8',
+            videoDurationMinutes: 16,
+            videoChapters: [
+              { time: '00:00', seconds: 0, title: 'The Distributed Consensus Problem' },
+              { time: '03:30', seconds: 210, title: 'Raft State Machine: Follower, Candidate, Leader' },
+              { time: '07:45', seconds: 465, title: 'Heartbeats and Randomized Election Timeouts' },
+              { time: '12:10', seconds: 730, title: 'Log Replication and Quorum Safety' },
+            ],
+            videoTranscript: [
+              { time: '00:00', text: 'Understanding consensus in distributed systems: how nodes agree on values despite network partitions and crashes.' },
+              { time: '03:30', text: 'Nodes in Raft exist in one of three states: Follower, Candidate, or Leader. At startup, all nodes are Followers.' },
+              { time: '07:45', text: 'Heartbeats reset the election timeout. Randomized timeouts between 150ms and 300ms prevent split-vote deadlocks.' },
+            ],
+            videoCheckpoints: [
+              {
+                id: 'cp-rpc-1',
+                timestamp: '0:15',
+                seconds: 15,
+                question: 'Under asynchronous network models, why is genuine "Exactly-Once" RPC execution impossible without server-side idempotency keys?',
+                options: [
+                  'Because the Two Generals Problem proves two nodes cannot coordinate state with 100% certainty over an unreliable link',
+                  'Because TCP checksums are only 16-bit and cause silent bit-flips',
+                  'Because NTP clock skews force packets to arrive backwards',
+                  'Because socket file descriptors cannot survive process restarts',
+                ],
+                correctIdx: 0,
+              },
+              {
+                id: 'cp-rpc-2',
+                timestamp: '0:40',
+                seconds: 40,
+                question: 'In a CAP theorem partition scenario, which property must a cluster sacrifice if it chooses to guarantee immediate write availability?',
+                options: [
+                  'Linearizable Consistency (nodes may observe diverging or stale state)',
+                  'Transport encryption (mTLS keys become invalid)',
+                  'Persistent disk storage (writes can only be held in volatile RAM)',
+                  'CPU clock synchronization',
+                ],
+                correctIdx: 0,
+              },
+            ],
             note: {
               id: 'note-rpc-fallacies',
               title: 'RPC Semantics, Fallacies of Distributed Computing & Network Partitions',
@@ -330,6 +371,79 @@ A peer grants its vote if and only if:
             estimatedMinutes: 50,
             isCompleted: true,
             isBookmarked: true,
+            videoUrl: 'https://www.youtube-nocookie.com/embed/eMlx5fFNoYc',
+            videoDurationMinutes: 22,
+            videoChapters: [
+              { time: '00:00', seconds: 0, title: 'Introduction: The Word-Association Problem' },
+              { time: '04:15', seconds: 255, title: 'Projecting into Query, Key, and Value Spaces' },
+              { time: '09:30', seconds: 570, title: 'Scaled Dot-Product: Why Divide by sqrt(d_k)?' },
+              { time: '14:40', seconds: 880, title: 'Softmax Distribution & Multi-Head Aggregation' },
+              { time: '19:20', seconds: 1160, title: 'Complexity: O(N^2) Sequence Bottleneck' },
+            ],
+            videoTranscript: [
+              { time: '00:00', text: 'Welcome to Scaled Dot-Product Attention. In this lecture, we examine why token interactions require dynamic matrix projections rather than static weights.' },
+              { time: '04:15', text: 'Consider the Query matrix Q and Key matrix K. Their inner product measures pairwise relevance between every token in the sequence.' },
+              { time: '09:30', text: 'Why do we scale by 1/sqrt(d_k)? As dimension d_k grows large, the variance of the dot product grows linearly, pushing softmax into flat saturated regions.' },
+              { time: '14:40', text: 'Normalizing by the square root restores unit variance, ensuring gradients remain healthy during backpropagation.' },
+            ],
+            videoCheckpoints: [
+              {
+                id: 'cp-dl-1',
+                timestamp: '0:15',
+                seconds: 15,
+                question: 'In Scaled Dot-Product Attention, why do we divide $Q K^T$ by $\\sqrt{d_k}$?',
+                options: [
+                  'To normalize variance to 1.0 and prevent vanishing softmax gradients in high dimensions',
+                  'To compress sequence representations down to 8-bit integers',
+                  'To reduce computational time complexity from O(N^2) to linear O(N)',
+                  'To project tokens into orthogonal frequency domains'
+                ],
+                correctIdx: 0,
+              },
+              {
+                id: 'cp-dl-2',
+                timestamp: '0:35',
+                seconds: 35,
+                question: 'How are Query ($Q$), Key ($K$), and Value ($V$) representations generated for each token?',
+                options: [
+                  'By linear matrix projection multiplying token embeddings by learned parameter matrices $W^Q, W^K, W^V$',
+                  'By fixed radial basis clustering without backpropagation',
+                  'By applying discrete Fourier transforms directly to the vocabulary indices',
+                  'By averaging adjacent words in the vocabulary lookup table'
+                ],
+                correctIdx: 0,
+              },
+              {
+                id: 'cp-dl-3',
+                timestamp: '1:10',
+                seconds: 70,
+                question: 'What is the primary role of the Value matrix ($V$) in computing the attention output?',
+                options: [
+                  'It contains the actual feature representations to be weighted and aggregated by the attention distribution',
+                  'It computes the pairwise compatibility score between tokens',
+                  'It normalizes hidden layer activations to zero mean',
+                  'It enforces autoregressive causal masking in decoder blocks'
+                ],
+                correctIdx: 0,
+              }
+            ],
+            referenceNotes: `# Mathematical Reference & Derivations: Scaled Dot-Product Attention
+
+### 1. Canonical Attention Formulation
+Given token representations $X \\in \\mathbb{R}^{N \\times d_{\\text{model}}}$, we compute linear projections with learned parameter weight matrices $W^Q, W^K, W^V$:
+$$Q = X W^Q, \\quad K = X W^K, \\quad V = X W^V$$
+
+The Scaled Dot-Product Attention operator is formulated as:
+$$\\text{Attention}(Q, K, V) = \\text{softmax}\\left(\\frac{Q K^T}{\\sqrt{d_k}}\\right) V$$
+
+### 2. Variance Normalization Proof
+Assume components of $q_i$ and $k_i$ are independent identically distributed random variables with mean $0$ and unit variance $\\sigma^2 = 1$:
+$$\\mathbb{E}[q_i k_i] = 0, \\quad \\text{Var}(q_i k_i) = \\text{Var}(q_i) \\text{Var}(k_i) = 1$$
+
+For the inner product $q \\cdot k = \\sum_{i=1}^{d_k} q_i k_i$:
+$$\\text{Var}(q \\cdot k) = \\sum_{i=1}^{d_k} \\text{Var}(q_i k_i) = d_k$$
+
+Thus the standard deviation is $\\sqrt{d_k}$. Dividing by $\\sqrt{d_k}$ yields variance $1.0$, preventing softmax saturation and vanishing gradients during backpropagation.`,
             note: {
               id: 'note-self-attention',
               title: 'Scaled Dot-Product Attention & Vanishing Softmax Gradients',
@@ -462,6 +576,20 @@ Dividing by $\\sqrt{d_k}$ restores $\\text{Var}\\left(\\frac{z}{\\sqrt{d_k}}\\ri
             estimatedMinutes: 45,
             isCompleted: true,
             isBookmarked: true,
+            videoUrl: 'https://www.youtube-nocookie.com/embed/Iuv6hY6zsd0',
+            videoDurationMinutes: 18,
+            videoChapters: [
+              { time: '00:00', seconds: 0, title: 'Thomas Young (1801): Coherence & Monochromatic Light' },
+              { time: '03:40', seconds: 220, title: 'Derivation of Path Difference Delta x = d sin(theta)' },
+              { time: '08:15', seconds: 495, title: 'Constructive Maxima vs Destructive Minima' },
+              { time: '12:50', seconds: 770, title: 'Fringe Width Beta and Wavelength Measurement' },
+            ],
+            videoTranscript: [
+              { time: '00:00', text: 'In Young\'s double slit experiment, light from a single source passes through two narrow slits, creating an interference pattern on the screen.' },
+              { time: '03:40', text: 'When screen distance D is much greater than slit separation d, the geometric path difference simplifies to d times y divided by D.' },
+              { time: '08:15', text: 'Constructive interference bright fringes appear whenever path difference equals an integer number of wavelengths.' },
+              { time: '12:50', text: 'The linear fringe width beta between adjacent fringes is given by lambda times D divided by slit separation d.' },
+            ],
             note: {
               id: 'note-maxwell-em',
               title: "Maxwell-Ampère Equation & Displacement Current Derivation",

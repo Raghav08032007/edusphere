@@ -1,5 +1,5 @@
 // ==============================================================================
-// EDUSPHEERE DATE & TIME FORMATTING UTILITIES
+// EDUSPHERE DATE & TIME FORMATTING UTILITIES
 // Prevents "Invalid Date" bugs with robust fallbacks and ISO validation
 // ==============================================================================
 

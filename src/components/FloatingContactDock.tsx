@@ -41,7 +41,7 @@ export const FloatingContactDock: React.FC<FloatingContactDockProps> = ({
 
       {/* 3. WhatsApp Support (Green) */}
       <a
-        href="https://wa.me/?text=Hi%20Eduspheere%20Admissions"
+        href="https://wa.me/?text=Hi%20Edusphere%20Admissions"
         target="_blank"
         rel="noopener noreferrer"
         className="w-11 h-11 rounded-full bg-[#25d366] hover:bg-[#20ba59] text-white flex items-center justify-center shadow-lg shadow-green-600/30 transition-all hover:scale-110 active:scale-95 group relative"

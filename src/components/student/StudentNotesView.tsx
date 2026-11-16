@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { AcademicClass, ClassNote } from '../../types/supabase';
+import { MathMarkdownRenderer } from '../ui/MathMarkdownRenderer';
 
 interface StudentNotesViewProps {
   classes: AcademicClass[];
@@ -209,9 +210,14 @@ export const StudentNotesView: React.FC<StudentNotesViewProps> = ({
               </p>
             </div>
 
-            {/* Note Content */}
-            <div className="prose prose-slate max-w-none text-xs sm:text-sm text-slate-800 leading-relaxed space-y-4 whitespace-pre-line font-medium bg-yellow-50/20 p-5 rounded-2xl border border-yellow-100">
-              {activeNoteModal.content}
+            {/* Note Content with KaTeX Math and Multi-Source View */}
+            <div className="pt-2">
+              <MathMarkdownRenderer
+                content={activeNoteModal.content}
+                title={activeNoteModal.title}
+                author={activeNoteModal.staffName}
+                publishedDate={new Date(activeNoteModal.createdAt).toLocaleDateString()}
+              />
             </div>
 
             {/* Attachment Box */}
@@ -227,14 +233,29 @@ export const StudentNotesView: React.FC<StudentNotesViewProps> = ({
                   </div>
                 </div>
 
-                <a
-                  href={activeNoteModal.attachmentUrl || '#'}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2 rounded-xl bg-white text-slate-900 border border-yellow-300 text-xs font-bold hover:bg-yellow-100 transition-all shadow-xs"
+                <button
+                  onClick={() => {
+                    if (activeNoteModal.attachmentUrl && !activeNoteModal.attachmentUrl.includes('example.com')) {
+                      window.open(activeNoteModal.attachmentUrl, '_blank');
+                    } else {
+                      // Generate and download lecture note handout directly
+                      const blob = new Blob(
+                        [`# ${activeNoteModal.title}\n\nFaculty: ${activeNoteModal.staffName} (${activeNoteModal.className})\nSubject: ${activeNoteModal.subject}\n\n${activeNoteModal.content}`],
+                        { type: 'text/markdown;charset=utf-8' }
+                      );
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${(activeNoteModal.attachmentName || activeNoteModal.title).replace(/[^a-zA-Z0-9_-]/g, '_')}.md`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-white text-slate-900 border border-yellow-300 text-xs font-bold hover:bg-yellow-100 transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
                 >
-                  Download PDF 📥
-                </a>
+                  <span>Download Handout</span>
+                  <span>📥</span>
+                </button>
               </div>
             )}
 

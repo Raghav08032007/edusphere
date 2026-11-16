@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   Vedantu
                 </span>
                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                  Eduspheere
+                  Edusphere
                 </span>
               </div>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">

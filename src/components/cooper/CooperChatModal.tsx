@@ -31,7 +31,7 @@ export const CooperChatModal: React.FC<CooperChatModalProps> = ({
     {
       id: 'cooper-init',
       sender: 'cooper',
-      content: `Hello **${currentUser.fullName}**! I'm **Cooper**, your dedicated AI Academic Tutor.\n\nI am connected to your **Eduspheere course curriculum** via the **Model Context Protocol (MCP)**, with real-time access to:\n• 📅 **Personal Attendance Ledger** (\`get_user_attendance\`)\n• 📚 **Class Study Notes & Handouts** (\`get_user_notes\`)\n• ❓ **Student Doubts & Faculty Answers** (\`get_user_doubts\`)\n\nAsk me anything or tap one of the suggested prompts below!`,
+      content: `Hello **${currentUser.fullName}**! I'm **Cooper**, your dedicated AI Academic Tutor.\n\nI am connected to your **Edusphere course curriculum** via the **Model Context Protocol (MCP)**, with real-time access to:\n• 📅 **Personal Attendance Ledger** (\`get_user_attendance\`)\n• 📚 **Class Study Notes & Handouts** (\`get_user_notes\`)\n• ❓ **Student Doubts & Faculty Answers** (\`get_user_doubts\`)\n\nAsk me anything or tap one of the suggested prompts below!`,
       timestamp: 'Just now',
     },
   ]);

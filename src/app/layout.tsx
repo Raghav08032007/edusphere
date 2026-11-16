@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Playfair_Display, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -21,9 +22,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Eduspheere — Study, Analyze & Clear Doubts | Cooper AI Academic Platform",
+  title: "Edusphere — Study, Analyze & Clear Doubts | Cooper AI Academic Platform",
   description: "Web platform for students to study, analyze, and clear doubts with role-based access (Staff & Student). Featuring daily attendance, class notes, doubt clearing, and Cooper AI powered by MCP tools.",
-  keywords: ["eduspheere", "cooper ai", "mcp server", "doubt clearing", "class notes", "student attendance", "white yellow theme", "adorn font"],
+  keywords: ["edusphere", "cooper ai", "mcp server", "doubt clearing", "class notes", "student attendance", "white yellow theme", "adorn font"],
 };
 
 export default function RootLayout({

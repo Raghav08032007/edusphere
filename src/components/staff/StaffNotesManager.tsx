@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { AcademicClass, ClassNote, UserProfile } from '../../types/supabase';
+import { uploadClassNoteAttachment } from '../../lib/supabaseStorage';
 
 interface StaffNotesManagerProps {
   currentUser: UserProfile;
@@ -23,7 +24,10 @@ export const StaffNotesManager: React.FC<StaffNotesManagerProps> = ({
   const [subject, setSubject] = useState(classes[0]?.subject || 'Physics');
   const [content, setContent] = useState('');
   const [tagsInput, setTagsInput] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [attachmentName, setAttachmentName] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [filterClass, setFilterClass] = useState('all');
 
@@ -33,15 +37,40 @@ export const StaffNotesManager: React.FC<StaffNotesManagerProps> = ({
     if (cls) setSubject(cls.subject);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
+    setUploadError(null);
     const currentClass = classes.find((c) => c.id === selectedClassId) || classes[0];
     const tags = tagsInput
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
+
+    let finalAttachmentName = attachmentName.trim() || undefined;
+    let finalAttachmentUrl: string | undefined = undefined;
+
+    if (selectedFile) {
+      setIsUploading(true);
+      try {
+        const uploadResult = await uploadClassNoteAttachment(selectedFile, currentClass.id);
+        if (uploadResult.error) {
+          setUploadError(uploadResult.error);
+          setIsUploading(false);
+          return;
+        }
+        finalAttachmentName = uploadResult.fileName;
+        finalAttachmentUrl = uploadResult.publicUrl;
+      } catch (err: unknown) {
+        setUploadError(err instanceof Error ? err.message : 'Upload failed');
+        setIsUploading(false);
+        return;
+      }
+      setIsUploading(false);
+    } else if (attachmentName.trim()) {
+      finalAttachmentUrl = `https://storage.local/class-notes/${encodeURIComponent(attachmentName.trim())}`;
+    }
 
     onAddNote({
       classId: currentClass.id,
@@ -52,16 +81,15 @@ export const StaffNotesManager: React.FC<StaffNotesManagerProps> = ({
       subject: subject.trim(),
       content: content.trim(),
       tags: tags.length ? tags : [subject],
-      attachmentName: attachmentName.trim() || undefined,
-      attachmentUrl: attachmentName.trim()
-        ? `https://supabase-storage.local/class-notes/${encodeURIComponent(attachmentName)}`
-        : undefined,
+      attachmentName: finalAttachmentName,
+      attachmentUrl: finalAttachmentUrl,
       isPublished: true,
     });
 
     setTitle('');
     setContent('');
     setTagsInput('');
+    setSelectedFile(null);
     setAttachmentName('');
     setIsSuccess(true);
     setTimeout(() => setIsSuccess(false), 3500);
@@ -187,26 +215,93 @@ export const StaffNotesManager: React.FC<StaffNotesManagerProps> = ({
               />
             </div>
 
-            {/* Attachment filename */}
+            {/* Attachment File / Supabase Storage Upload */}
             <div>
-              <label className="block text-slate-700 mb-1">Class Attachment / Slides (Optional)</label>
-              <input
-                type="text"
-                value={attachmentName}
-                onChange={(e) => setAttachmentName(e.target.value)}
-                placeholder="e.g. Lecture_08_Handout_Derivations.pdf"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-yellow-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
-              <span className="text-[10px] text-slate-400 font-medium block mt-1">
-                Upload lecture handouts, PDF notes, or derivation sheets
-              </span>
+              <label className="block text-slate-700 mb-1 font-semibold text-xs">
+                Class Attachment / Slides (Supabase Storage)
+              </label>
+              
+              <div className="border border-dashed border-yellow-300 rounded-xl p-3 bg-yellow-50/40 hover:bg-yellow-50 transition-colors">
+                <input
+                  type="file"
+                  id="note-file-upload"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelectedFile(file);
+                      setAttachmentName(file.name);
+                    }
+                  }}
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.zip"
+                />
+
+                {selectedFile ? (
+                  <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-yellow-200">
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="text-base">📄</span>
+                      <div className="truncate">
+                        <span className="text-xs font-bold text-slate-800 block truncate">
+                          {selectedFile.name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono-code">
+                          {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for Supabase Storage
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setAttachmentName('');
+                      }}
+                      className="text-xs text-rose-500 hover:text-rose-700 font-bold px-2 py-1 cursor-pointer"
+                    >
+                      ✕ Remove
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="note-file-upload"
+                    className="flex flex-col items-center justify-center py-3 cursor-pointer text-center"
+                  >
+                    <span className="text-2xl mb-1">☁️</span>
+                    <span className="text-xs font-bold text-amber-900">
+                      Choose PDF, Slides or Document to Upload
+                    </span>
+                    <span className="text-[10px] text-slate-500 mt-0.5">
+                      Directly stores in Supabase Storage bucket <code className="font-mono-code text-amber-700 font-bold">class-notes</code> (Max 25MB)
+                    </span>
+                  </label>
+                )}
+              </div>
+
+              {uploadError && (
+                <div className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1">
+                  <span>⚠️</span>
+                  <span>{uploadError}</span>
+                </div>
+              )}
             </div>
 
             <button
               type="submit"
-              className="w-full yellow-gradient-btn py-3 rounded-2xl text-xs font-black uppercase tracking-wider cursor-pointer mt-2"
+              disabled={isUploading}
+              className={`w-full yellow-gradient-btn py-3 rounded-2xl text-xs font-black uppercase tracking-wider cursor-pointer mt-2 flex items-center justify-center gap-2 ${
+                isUploading ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
             >
-              🚀 Publish Note to Class
+              {isUploading ? (
+                <>
+                  <span className="animate-spin text-sm">⏳</span>
+                  <span>Uploading to Supabase Storage...</span>
+                </>
+              ) : (
+                <>
+                  <span>🚀</span>
+                  <span>Publish Note to Class</span>
+                </>
+              )}
             </button>
           </form>
         </div>

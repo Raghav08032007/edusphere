@@ -200,7 +200,7 @@ export async function askCooper(
 
   // DEFAULT CONVERSATIONAL GREETING & CAPABILITIES
   return {
-    reply: `Hi **${currentUser.fullName}**! I'm **Cooper**, your AI Academic Tutor on Eduspheere.\n\n` +
+    reply: `Hi **${currentUser.fullName}**! I'm **Cooper**, your AI Academic Tutor on Edusphere.\n\n` +
       `Here is what I can do for you right now using live **Academic MCP tools**:\n` +
       `• 📊 **Check Attendance**: Ask *"What is my attendance percentage?"*\n` +
       `• 📚 **Retrieve Class Notes**: Ask *"Show me notes for Physics or AI"*\n` +

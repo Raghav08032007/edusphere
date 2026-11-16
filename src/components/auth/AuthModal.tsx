@@ -244,12 +244,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="text-center space-y-2 mb-5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-100 text-yellow-900 border border-yellow-300 text-[10px] font-black uppercase font-mono-code tracking-wide">
             <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />
-            <span>Eduspheere Identity &amp; Single Sign-On</span>
+            <span>Edusphere Identity &amp; Single Sign-On</span>
           </div>
 
           <h2 className="font-adorn text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
             {authMode === 'login'
-              ? 'Sign In to Eduspheere'
+              ? 'Sign In to Edusphere'
               : 'Create Student Account'}
           </h2>
           <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
@@ -260,7 +260,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Mode Selector Tabs (Sign In vs Register) */}
-        <div className="mb-5 p-1 bg-yellow-50 rounded-2xl border border-yellow-200 grid grid-cols-2 gap-1">
+        <div className="mb-4 p-1 bg-yellow-50 rounded-2xl border border-yellow-200 grid grid-cols-2 gap-1">
           <button
             type="button"
             onClick={() => {
@@ -290,6 +290,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           >
             <span>Register as Student</span>
           </button>
+        </div>
+
+        {/* Quick Demo Credentials for Mentors & Students */}
+        <div className="mb-4 p-3 rounded-2xl bg-amber-50/80 border border-yellow-300 text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-extrabold text-slate-900 text-[11px] uppercase font-mono-code flex items-center gap-1.5">
+              <span>🔑</span>
+              <span>Mentor &amp; Student Credentials</span>
+            </span>
+            <span className="text-[10px] text-amber-800 font-bold font-mono-code">1-Click Autofill</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('login');
+                setEmailInput('k.rajan@vedantu.edu');
+                setPasswordInput('faculty@2026');
+              }}
+              className="p-2 rounded-xl bg-white hover:bg-yellow-100 border border-yellow-300 text-left transition-all cursor-pointer shadow-2xs"
+            >
+              <span className="font-black text-amber-900 block">👨‍🏫 Mentor / Faculty</span>
+              <span className="text-[10px] text-slate-600 font-mono-code block truncate">k.rajan@vedantu.edu</span>
+              <span className="text-[9px] text-slate-500 font-mono-code block">Pass: faculty@2026</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('login');
+                setEmailInput('param.sahar@vedantu.edu');
+                setPasswordInput('scholar@2026');
+              }}
+              className="p-2 rounded-xl bg-white hover:bg-yellow-100 border border-yellow-300 text-left transition-all cursor-pointer shadow-2xs"
+            >
+              <span className="font-black text-slate-900 block">🎓 Student Scholar</span>
+              <span className="text-[10px] text-slate-600 font-mono-code block truncate">param.sahar@vedantu.edu</span>
+              <span className="text-[9px] text-slate-500 font-mono-code block">Pass: scholar@2026</span>
+            </button>
+          </div>
         </div>
 
         {/* Error Feedback Banner */}
@@ -489,9 +528,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               ? 'Authenticating...'
               : authMode === 'register'
               ? 'Complete Student Registration'
-              : 'Sign In to Eduspheere'}
+              : 'Sign In to Edusphere'}
           </button>
         </form>
+
+        <div className="mt-3 text-center">
+          <a
+            href="/login"
+            className="text-xs font-bold text-amber-800 hover:text-amber-950 underline flex items-center justify-center gap-1"
+          >
+            <span>Open Dedicated Login Page</span>
+            <span>→</span>
+          </a>
+        </div>
 
         {/* Existing Signed In User Profile & Logout Option */}
         {currentUser && (

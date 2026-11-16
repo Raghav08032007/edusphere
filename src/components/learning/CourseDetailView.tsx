@@ -283,19 +283,40 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({
                               {topic.isCompleted ? '✓' : `${idx + 1}`}
                             </button>
 
-                            <div className="space-y-1">
-                              <h4 className="text-sm font-bold text-slate-900 leading-snug">
-                                {topic.title}
-                              </h4>
+                            <div className="space-y-1.5">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                                  {topic.title}
+                                </h4>
+                                {topic.videoUrl && (
+                                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-mono-code flex items-center gap-1">
+                                    <span>🎬</span>
+                                    <span>Video ({topic.videoDurationMinutes || 18}m)</span>
+                                  </span>
+                                )}
+                                {topic.videoCheckpoints && topic.videoCheckpoints.length > 0 && (
+                                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-yellow-300 text-yellow-950 font-mono-code flex items-center gap-1">
+                                    <span>⚡</span>
+                                    <span>{topic.videoCheckpoints.length} Checkpoints</span>
+                                  </span>
+                                )}
+                                {topic.note.handoutName && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono-code flex items-center gap-1">
+                                    <span>📎</span>
+                                    <span className="truncate max-w-[120px]">{topic.note.handoutName}</span>
+                                  </span>
+                                )}
+                              </div>
+
                               <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 font-mono-code">
-                                <span>⏱️ {topic.estimatedMinutes} mins read</span>
+                                <span>⏱️ {topic.estimatedMinutes} mins study</span>
                                 <span>•</span>
                                 <span>❓ {topic.questions.length} practice questions</span>
                                 {topic.note.keyTakeaways && topic.note.keyTakeaways.length > 0 && (
                                   <>
                                     <span>•</span>
                                     <span className="text-amber-700 font-semibold">
-                                      {topic.note.keyTakeaways.length} takeaways
+                                      {topic.note.keyTakeaways.length} key takeaways
                                     </span>
                                   </>
                                 )}
@@ -307,10 +328,14 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({
                           <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                             <button
                               onClick={() => onOpenTopic(topic.id, 'note')}
-                              className="px-3.5 py-1.5 rounded-xl bg-yellow-50 hover:bg-yellow-100 text-slate-900 border border-yellow-300 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                topic.videoUrl
+                                  ? 'bg-yellow-400 hover:bg-yellow-500 text-slate-950 shadow-2xs font-black'
+                                  : 'bg-yellow-50 hover:bg-yellow-100 text-slate-900 border border-yellow-300'
+                              }`}
                             >
-                              <span>📖</span>
-                              <span>Read Notes</span>
+                              <span>{topic.videoUrl ? '🎬' : '📖'}</span>
+                              <span>{topic.videoUrl ? 'Watch & Read Notes' : 'Read Notes'}</span>
                             </button>
 
                             <button
@@ -406,7 +431,7 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({
                   {course.instructorTitle}
                 </p>
                 <p className="text-[11px] text-slate-500 font-mono-code">
-                  Eduspheere Verified Senior Fellow
+                  Edusphere Verified Senior Fellow
                 </p>
               </div>
             </div>

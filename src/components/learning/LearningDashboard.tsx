@@ -17,6 +17,7 @@ interface LearningDashboardProps {
   onOpenAttendance: () => void;
   onOpenDoubts: () => void;
   onOpenCooperWithQuery: (query: string) => void;
+  onOpenArena?: () => void;
 }
 
 export const LearningDashboard: React.FC<LearningDashboardProps> = ({
@@ -31,6 +32,7 @@ export const LearningDashboard: React.FC<LearningDashboardProps> = ({
   onOpenAttendance,
   onOpenDoubts,
   onOpenCooperWithQuery,
+  onOpenArena,
 }) => {
   // Compute student-specific attendance stats
   const myAttendance = attendanceRecords.filter((r) => r.studentId === currentUser.id);
@@ -158,8 +160,8 @@ export const LearningDashboard: React.FC<LearningDashboardProps> = ({
         </div>
       )}
 
-      {/* Grid: Academic Operations & Health */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Grid: Academic Operations, Gamification & Health */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Attendance Snapshot Card */}
         <div
           onClick={onOpenAttendance}
@@ -278,6 +280,45 @@ export const LearningDashboard: React.FC<LearningDashboardProps> = ({
             <span>→</span>
           </div>
         </div>
+
+        {/* TrigQuest Boss Arena Gamification Card */}
+        <div
+          onClick={onOpenArena}
+          className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white rounded-3xl p-6 border-2 border-amber-400 hover:border-amber-300 shadow-md hover:shadow-xl hover:scale-[1.02] transition-all cursor-pointer space-y-4 flex flex-col justify-between"
+        >
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-2xl animate-pulse">⚔️</span>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-400 text-slate-950 font-mono-code font-bold">
+                Gamified Arena
+              </span>
+            </div>
+            <div>
+              <h3 className="font-adorn text-xl font-bold text-amber-300">
+                TrigQuest Battle
+              </h3>
+              <p className="text-xs text-slate-300 font-medium mt-0.5">
+                Pick a champion, land the hit!
+              </p>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold text-amber-400 font-mono-code">
+                Bosses
+              </span>
+              <span className="text-xs font-bold text-emerald-400 font-mono-code">
+                Earn +150 XP
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300">
+              🎮 Solve trigonometry under pressure & defeat boss monsters in the retro arcade!
+            </p>
+          </div>
+
+          <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-bold text-amber-300">
+            <span>Enter the Arena</span>
+            <span>⚔️ →</span>
+          </div>
+        </div>
       </div>
 
       {/* Enrolled Courses Grid */}
@@ -358,7 +399,7 @@ export const LearningDashboard: React.FC<LearningDashboardProps> = ({
               Cooper AI Quick Study Prompts
             </h3>
             <p className="text-xs text-slate-500">
-              Instant academic synthesis powered by Eduspheere MCP tools
+              Instant academic synthesis powered by Edusphere MCP tools
             </p>
           </div>
         </div>

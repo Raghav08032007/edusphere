@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { UserProfile, UserRole } from '../../types/supabase';
 
 interface YellowWhiteNavbarProps {
@@ -30,12 +31,14 @@ export const YellowWhiteNavbar: React.FC<YellowWhiteNavbarProps> = ({
     { id: 'notes', label: 'Notes', icon: '📚' },
     { id: 'question-bank', label: 'Questions', icon: '✏️' },
     { id: 'quizzes', label: 'Quizzes', icon: '🏆' },
+    { id: 'arena', label: 'Arena 🎮', icon: '⚔️' },
     { id: 'attendance', label: 'Attendance', icon: '📅' },
     { id: 'doubts', label: 'Doubts', icon: '❓', badge: unresolvedDoubtsCount > 0 ? unresolvedDoubtsCount : undefined },
     { id: 'cooper', label: 'Cooper AI', icon: '🤖' },
   ];
 
   const staffNavItems = [
+    { id: 'staff-videos', label: 'Upload Videos & Notes', icon: '📹' },
     { id: 'staff-notes', label: 'Publish Notes', icon: '📝' },
     { id: 'staff-attendance', label: 'Mark Attendance', icon: '📅' },
     { id: 'staff-doubts', label: 'Student Doubts', icon: '❓', badge: unresolvedDoubtsCount > 0 ? unresolvedDoubtsCount : undefined },
@@ -81,7 +84,7 @@ export const YellowWhiteNavbar: React.FC<YellowWhiteNavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-yellow-200/90 shadow-2xs">
       {/* Top Banner Alert Strip */}
-      <div className="bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-300 text-slate-900 text-xs font-semibold px-4 py-1 text-center border-b border-yellow-300/80 flex items-center justify-center gap-2">
+      <div className="bg-gradient-to-r from-yellow-300 via-amber-200 to-yellow-300 text-slate-900 text-xs font-semibold px-4 py-1 text-center border-b border-yellow-300/80 flex flex-wrap items-center justify-center gap-2">
         <span className="inline-block w-2 h-2 rounded-full bg-amber-600 animate-ping" />
         <span>
           Active Academic Session • Role:{' '}
@@ -89,6 +92,14 @@ export const YellowWhiteNavbar: React.FC<YellowWhiteNavbarProps> = ({
             {isStaff ? 'Faculty & Staff (Dean Console)' : 'Student Scholar Cockpit'}
           </strong>
         </span>
+        {!isStaff && (
+          <Link
+            href="/mentor-login"
+            className="ml-2 px-2.5 py-0.5 rounded-full bg-slate-950 text-yellow-300 text-[10px] font-black uppercase font-mono-code hover:bg-slate-800 transition-all shadow-2xs"
+          >
+            Mentor Studio Login 👨‍🏫 →
+          </Link>
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -104,7 +115,7 @@ export const YellowWhiteNavbar: React.FC<YellowWhiteNavbarProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-adorn text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                  Eduspheere
+                  Edusphere
                 </span>
                 <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300 font-mono-code">
                   SaaS
